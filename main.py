@@ -83,6 +83,14 @@ class NEPSEAnalysisApp:
         self.portfolio_analytics = {}
         self.risk_metrics = {}
         
+        # Initialize performance monitoring
+        self.performance_stats = {
+            'data_fetches': 0,
+            'chart_updates': 0,
+            'errors_count': 0,
+            'last_activity': datetime.now()
+        }
+        
     def _load_config(self) -> None:
         """Load configuration from JSON file"""
         try:
@@ -223,7 +231,7 @@ class NEPSEAnalysisApp:
         
         # Watchlist frame
         self.watchlist_frame = ttk.LabelFrame(self.control_frame, text="Watchlist", padding="5")
-        self.watchlist_frame.grid(row=20, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        self.watchlist_frame.grid(row=24, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
         
     def create_widgets(self):
         # Stock Symbol Input with tooltip
@@ -267,29 +275,38 @@ class NEPSEAnalysisApp:
         ttk.Button(self.control_frame, text="Show Portfolio", command=self.show_portfolio).grid(row=6, column=0, columnspan=2, pady=5)
         ttk.Button(self.control_frame, text="Portfolio Analytics", command=self._show_portfolio_analytics).grid(row=7, column=0, columnspan=2, pady=5)
         ttk.Button(self.control_frame, text="Export Data", command=self.export_data).grid(row=8, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Import Portfolio", command=self._import_portfolio).grid(row=9, column=0, columnspan=2, pady=5)
         # Additional buttons for advanced features
-        ttk.Button(self.control_frame, text="Search Portfolio", command=self._search_portfolio).grid(row=10, column=0, columnspan=2, pady=5)
-        ttk.Button(self.control_frame, text="Clear Cache", command=self._clear_cache).grid(row=11, column=0, columnspan=2, pady=5)
-        ttk.Button(self.control_frame, text="Theme", command=self._toggle_theme).grid(row=12, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Search Portfolio", command=self._search_portfolio).grid(row=11, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Clear Cache", command=self._clear_cache).grid(row=12, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Theme", command=self._toggle_theme).grid(row=13, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Settings", command=self._show_settings).grid(row=14, column=0, columnspan=2, pady=5)
         
         # Analysis Options
-        ttk.Separator(self.control_frame, orient='horizontal').grid(row=13, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
-        ttk.Label(self.control_frame, text="Analysis Options:", font=('Arial', 10, 'bold')).grid(row=14, column=0, columnspan=2, pady=5)
+        ttk.Separator(self.control_frame, orient='horizontal').grid(row=15, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        ttk.Label(self.control_frame, text="Analysis Options:", font=('Arial', 10, 'bold')).grid(row=16, column=0, columnspan=2, pady=5)
         
         self.show_ma = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.control_frame, text="Moving Average", variable=self.show_ma).grid(row=15, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Moving Average", variable=self.show_ma).grid(row=17, column=0, columnspan=2, sticky=tk.W)
         
         self.show_volume = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.control_frame, text="Volume", variable=self.show_volume).grid(row=16, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Volume", variable=self.show_volume).grid(row=18, column=0, columnspan=2, sticky=tk.W)
         
         self.show_rsi = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="RSI", variable=self.show_rsi).grid(row=17, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="RSI", variable=self.show_rsi).grid(row=19, column=0, columnspan=2, sticky=tk.W)
         
         self.show_macd = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="MACD", variable=self.show_macd).grid(row=18, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="MACD", variable=self.show_macd).grid(row=20, column=0, columnspan=2, sticky=tk.W)
         
         self.show_bollinger = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="Bollinger Bands", variable=self.show_bollinger).grid(row=19, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Bollinger Bands", variable=self.show_bollinger).grid(row=21, column=0, columnspan=2, sticky=tk.W)
+        
+        # Advanced indicators
+        self.show_stochastic = tk.BooleanVar(value=False)
+        ttk.Checkbutton(self.control_frame, text="Stochastic", variable=self.show_stochastic).grid(row=22, column=0, columnspan=2, sticky=tk.W)
+        
+        self.show_williams = tk.BooleanVar(value=False)
+        ttk.Checkbutton(self.control_frame, text="Williams %R", variable=self.show_williams).grid(row=23, column=0, columnspan=2, sticky=tk.W)
         
         # Create matplotlib figure for charts
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(10, 8))
@@ -385,6 +402,7 @@ class NEPSEAnalysisApp:
         """Fetch data in separate thread with comprehensive error handling"""
         try:
             self.logger.info(f"Starting data fetch for {symbol}")
+            self._update_performance_stats('data_fetch', f"Fetching {symbol}")
             
             # Try to fetch from NEPSE API first
             data = self._fetch_nepse_data(symbol, start_date, end_date)
@@ -425,6 +443,7 @@ class NEPSEAnalysisApp:
         except Exception as e:
             error_msg = f"Failed to fetch data for {symbol}: {str(e)}"
             self.logger.error(error_msg)
+            self._update_performance_stats('error', error_msg)
             self.root.after(0, lambda: messagebox.showerror("Fetch Error", error_msg))
             self.root.after(0, lambda: self.status_var.set("Error fetching data"))
             self.root.after(0, self._hide_progress_bar)
@@ -610,6 +629,33 @@ class NEPSEAnalysisApp:
                     self.ax2.set_ylim(0, 100)  # RSI is always between 0-100
                 else:
                     self.ax2.text(0.5, 0.5, 'Insufficient data for RSI', ha='center', va='center', transform=self.ax2.transAxes)
+            elif self.show_stochastic.get():
+                if len(data) >= 14:  # Stochastic needs sufficient data
+                    k_percent, d_percent = self._calculate_stochastic(data['Close'])
+                    self.ax2.plot(data.index, k_percent, label='%K', color='blue', alpha=0.7)
+                    self.ax2.plot(data.index, d_percent, label='%D', color='red', alpha=0.7)
+                    self.ax2.axhline(y=80, color='r', linestyle='--', alpha=0.5, label='Overbought')
+                    self.ax2.axhline(y=20, color='g', linestyle='--', alpha=0.5, label='Oversold')
+                    self.ax2.set_title('Stochastic Oscillator', fontweight='bold')
+                    self.ax2.set_ylabel('Value')
+                    self.ax2.set_xlabel('Date')
+                    self.ax2.legend()
+                    self.ax2.set_ylim(0, 100)
+                else:
+                    self.ax2.text(0.5, 0.5, 'Insufficient data for Stochastic', ha='center', va='center', transform=self.ax2.transAxes)
+            elif self.show_williams.get():
+                if len(data) >= 14:  # Williams %R needs sufficient data
+                    wr = self._calculate_williams_r(data['Close'])
+                    self.ax2.plot(data.index, wr, label='Williams %R', color='orange', alpha=0.7)
+                    self.ax2.axhline(y=-20, color='r', linestyle='--', alpha=0.5, label='Overbought')
+                    self.ax2.axhline(y=-80, color='g', linestyle='--', alpha=0.5, label='Oversold')
+                    self.ax2.set_title('Williams %R', fontweight='bold')
+                    self.ax2.set_ylabel('%R')
+                    self.ax2.set_xlabel('Date')
+                    self.ax2.legend()
+                    self.ax2.set_ylim(-100, 0)
+                else:
+                    self.ax2.text(0.5, 0.5, 'Insufficient data for Williams %R', ha='center', va='center', transform=self.ax2.transAxes)
             else:
                 # Default to volume if nothing selected
                 if 'Volume' in data.columns:
@@ -627,6 +673,7 @@ class NEPSEAnalysisApp:
             self.canvas.draw()
             
             self.logger.info(f"Chart updated successfully for {symbol}")
+            self._update_performance_stats('chart_update', f"Updated chart for {symbol}")
             
         except Exception as e:
             self.logger.error(f"Error updating chart for {symbol}: {e}")
@@ -653,6 +700,52 @@ class NEPSEAnalysisApp:
         signal_line = macd_line.ewm(span=signal).mean()
         histogram = macd_line - signal_line
         return macd_line, signal_line, histogram
+        
+    def _calculate_stochastic(self, prices, k=14, d=3) -> Tuple[pd.Series, pd.Series, pd.Series]:
+        """Calculate Stochastic oscillator"""
+        try:
+            low_min = prices.rolling(window=k).min()
+            high_max = prices.rolling(window=k).max()
+            
+            # Calculate %K and %D
+            k_percent = 100 * ((prices - low_min) / (high_max - low_min))
+            d_percent = k_percent.rolling(window=d).mean()
+            
+            return k_percent, d_percent
+            
+        except Exception as e:
+            self.logger.error(f"Failed to calculate Stochastic: {e}")
+            return pd.Series(), pd.Series(), pd.Series()
+            
+    def _calculate_williams_r(self, prices, period=14) -> pd.Series:
+        """Calculate Williams %R"""
+        try:
+            high_max = prices.rolling(window=period).max()
+            low_min = prices.rolling(window=period).min()
+            
+            # Calculate Williams %R
+            wr = -100 * ((high_max - prices) / (high_max - low_min))
+            return wr
+            
+        except Exception as e:
+            self.logger.error(f"Failed to calculate Williams %R: {e}")
+            return pd.Series()
+            
+    def _update_performance_stats(self, action: str, details: str = "") -> None:
+        """Update performance statistics"""
+        try:
+            self.performance_stats['last_activity'] = datetime.now()
+            
+            if action == 'data_fetch':
+                self.performance_stats['data_fetches'] += 1
+            elif action == 'chart_update':
+                self.performance_stats['chart_updates'] += 1
+            elif action == 'error':
+                self.performance_stats['errors_count'] += 1
+                self.logger.warning(f"Performance error: {details}")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to update performance stats: {e}")
         
     def _calculate_bollinger_bands(self, prices, window=20, num_std=2):
         """Calculate Bollinger Bands"""
@@ -2024,8 +2117,224 @@ class NEPSEAnalysisApp:
             self.logger.info("Portfolio analytics displayed")
             
         except Exception as e:
-            self.logger.error(f"Failed to show portfolio analytics: {e}")
+            self.logger.error(f"Failed to show analytics: {e}")
             messagebox.showerror("Error", f"Failed to show analytics: {str(e)}")
+
+    def _import_portfolio(self) -> None:
+        """Import portfolio from CSV or Excel file"""
+        try:
+            filename = filedialog.askopenfilename(
+                title="Import Portfolio",
+                filetypes=[
+                    ("CSV files", "*.csv"),
+                    ("Excel files", "*.xlsx"),
+                    ("All files", "*.*")
+                ]
+            )
+            
+            if not filename:
+                return
+                
+            self._show_progress_bar("Importing portfolio...")
+            
+            # Determine file type and import accordingly
+            if filename.endswith('.csv'):
+                self._import_portfolio_csv(filename)
+            elif filename.endswith('.xlsx'):
+                self._import_portfolio_excel(filename)
+            else:
+                messagebox.showerror("Unsupported Format", "Please select a CSV or Excel file")
+                return
+                
+            self._hide_progress_bar()
+            self.update_portfolio_display()
+            messagebox.showinfo("Success", "Portfolio imported successfully!")
+            self.logger.info(f"Portfolio imported from {filename}")
+            
+        except Exception as e:
+            self._hide_progress_bar()
+            self.logger.error(f"Failed to import portfolio: {e}")
+            messagebox.showerror("Import Error", f"Failed to import portfolio: {str(e)}")
+            
+    def _import_portfolio_csv(self, filename: str) -> None:
+        """Import portfolio from CSV file"""
+        try:
+            df = pd.read_csv(filename)
+            
+            required_columns = ['Symbol', 'Shares', 'Buy Price']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            
+            if missing_columns:
+                messagebox.showerror("Invalid Format", f"Missing required columns: {', '.join(missing_columns)}")
+                return
+                
+            # Process imported data
+            imported_count = 0
+            for _, row in df.iterrows():
+                try:
+                    symbol = str(row['Symbol']).strip().upper()
+                    shares = float(row['Shares'])
+                    buy_price = float(row['Buy Price'])
+                    
+                    if self._validate_symbol(symbol) and shares > 0 and buy_price > 0:
+                        # Check if symbol already exists
+                        if symbol in self.portfolio:
+                            # Update existing
+                            self.portfolio[symbol]['shares'] = shares
+                            self.portfolio[symbol]['buy_price'] = buy_price
+                        else:
+                            # Add new
+                            self.portfolio[symbol] = {
+                                'shares': shares,
+                                'buy_price': buy_price,
+                                'current_price': buy_price,  # Will be updated on next data fetch
+                                'last_updated': datetime.now()
+                            }
+                        imported_count += 1
+                        
+                except Exception as e:
+                    self.logger.warning(f"Skipping invalid row: {e}")
+                    
+            self.logger.info(f"Imported {imported_count} portfolio items from CSV")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to import CSV portfolio: {e}")
+            raise
+            
+    def _import_portfolio_excel(self, filename: str) -> None:
+        """Import portfolio from Excel file"""
+        try:
+            df = pd.read_excel(filename)
+            
+            # Try different column name variations
+            column_mapping = {
+                'symbol': ['Symbol', 'Ticker', 'Stock'],
+                'shares': ['Shares', 'Quantity', 'Qty'],
+                'buy_price': ['Buy Price', 'Purchase Price', 'Cost']
+            }
+            
+            # Find matching columns
+            found_columns = {}
+            for standard, variations in column_mapping.items():
+                for col in df.columns:
+                    if col in variations:
+                        found_columns[standard] = col
+                        break
+                        
+            missing_required = [col for col in ['symbol', 'shares', 'buy_price'] if col not in found_columns]
+            
+            if missing_required:
+                messagebox.showerror("Invalid Format", f"Missing required columns. Need: {', '.join(missing_required)}")
+                return
+                
+            # Process imported data
+            imported_count = 0
+            for _, row in df.iterrows():
+                try:
+                    symbol = str(row[found_columns['symbol']]).strip().upper()
+                    shares = float(row[found_columns['shares']])
+                    buy_price = float(row[found_columns['buy_price']])
+                    
+                    if self._validate_symbol(symbol) and shares > 0 and buy_price > 0:
+                        if symbol in self.portfolio:
+                            # Update existing
+                            self.portfolio[symbol]['shares'] = shares
+                            self.portfolio[symbol]['buy_price'] = buy_price
+                        else:
+                            # Add new
+                            self.portfolio[symbol] = {
+                                'shares': shares,
+                                'buy_price': buy_price,
+                                'current_price': buy_price,
+                                'last_updated': datetime.now()
+                            }
+                        imported_count += 1
+                        
+                except Exception as e:
+                    self.logger.warning(f"Skipping invalid row: {e}")
+                    
+            self.logger.info(f"Imported {imported_count} portfolio items from Excel")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to import Excel portfolio: {e}")
+            raise
+            
+    def _show_settings(self) -> None:
+        """Show settings dialog for configuration"""
+        try:
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Settings")
+            dialog.geometry("500x400")
+            
+            # Center dialog
+            dialog.transient(self.root)
+            dialog.grab_set()
+            
+            # Create notebook for organized settings
+            notebook = ttk.Notebook(dialog)
+            notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            # General settings tab
+            general_frame = ttk.Frame(notebook)
+            notebook.add(general_frame, text="General")
+            
+            # Auto-save interval
+            ttk.Label(general_frame, text="Auto-save Interval (seconds):").grid(row=0, column=0, sticky='w', pady=5)
+            auto_save_var = tk.StringVar(value=str(self.config.get('auto_save_interval', 300)))
+            auto_save_entry = ttk.Entry(general_frame, textvariable=auto_save_var, width=10)
+            auto_save_entry.grid(row=0, column=1, pady=5, padx=10)
+            
+            # Max data age
+            ttk.Label(general_frame, text="Max Data Age (days):").grid(row=1, column=0, sticky='w', pady=5)
+            max_age_var = tk.StringVar(value=str(self.config.get('max_data_age_days', 7)))
+            max_age_entry = ttk.Entry(general_frame, textvariable=max_age_var, width=10)
+            max_age_entry.grid(row=1, column=1, pady=5, padx=10)
+            
+            # Refresh interval
+            ttk.Label(general_frame, text="Refresh Interval (seconds):").grid(row=2, column=0, sticky='w', pady=5)
+            refresh_var = tk.StringVar(value=str(self.refresh_interval))
+            refresh_entry = ttk.Entry(general_frame, textvariable=refresh_var, width=10)
+            refresh_entry.grid(row=2, column=1, pady=5, padx=10)
+            
+            # Chart style
+            ttk.Label(general_frame, text="Chart Style:").grid(row=3, column=0, sticky='w', pady=5)
+            style_var = tk.StringVar(value=self.config.get('chart_style', 'seaborn-v0_8'))
+            style_combo = ttk.Combobox(general_frame, textvariable=style_var, values=['seaborn-v0_8', 'default', 'classic', 'ggplot'])
+            style_combo.grid(row=3, column=1, pady=5, padx=10)
+            
+            def save_settings():
+                try:
+                    self.config['auto_save_interval'] = int(auto_save_var.get())
+                    self.config['max_data_age_days'] = int(max_age_var.get())
+                    self.refresh_interval = int(refresh_var.get())
+                    self.config['chart_style'] = style_var.get()
+                    
+                    # Save to file
+                    with open('config.json', 'w') as f:
+                        json.dump({'settings': self.config}, f, indent=2)
+                        
+                    self.logger.info("Settings saved successfully")
+                    messagebox.showinfo("Success", "Settings saved successfully!")
+                    dialog.destroy()
+                    
+                except ValueError:
+                    messagebox.showerror("Invalid Input", "Please enter valid numbers for intervals")
+                except Exception as e:
+                    self.logger.error(f"Failed to save settings: {e}")
+                    messagebox.showerror("Error", f"Failed to save settings: {str(e)}")
+                    
+            # Buttons
+            button_frame = ttk.Frame(dialog)
+            button_frame.pack(pady=20)
+            
+            ttk.Button(button_frame, text="Save", command=save_settings).pack(side=tk.LEFT, padx=5)
+            ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+            
+            self.logger.info("Settings dialog opened")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to show settings: {e}")
+            messagebox.showerror("Error", f"Failed to show settings: {str(e)}")
 
 def main():
     root = tk.Tk()
