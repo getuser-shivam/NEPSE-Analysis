@@ -26,6 +26,7 @@ import sys
 import asyncio
 import data_manager
 import technical_indicators
+import ai_analytics
 
 class NEPSEAnalysisApp:
     def __init__(self, root):
@@ -122,6 +123,10 @@ class NEPSEAnalysisApp:
         self.performance_baseline = None
         self.error_count = 0
         self.last_code_change = datetime.now()
+        
+        # Initialize AI analytics
+        self.ai_analytics = ai_analytics.AIAnalytics(self.logger)
+        self.ml_models_trained = False
         
     def _load_config(self) -> None:
         """Load configuration from JSON file"""
@@ -267,7 +272,7 @@ class NEPSEAnalysisApp:
         
         # Watchlist frame
         self.watchlist_frame = ttk.LabelFrame(self.control_frame, text="Watchlist", padding="5")
-        self.watchlist_frame.grid(row=25, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        self.watchlist_frame.grid(row=27, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
         
     def create_widgets(self):
         # Stock Symbol Input with tooltip
@@ -318,32 +323,34 @@ class NEPSEAnalysisApp:
         ttk.Button(self.control_frame, text="Theme", command=self._toggle_theme).grid(row=13, column=0, columnspan=2, pady=5)
         ttk.Button(self.control_frame, text="Settings", command=self._show_settings).grid(row=14, column=0, columnspan=2, pady=5)
         ttk.Button(self.control_frame, text="Performance Test", command=self._performance_comparison).grid(row=15, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="AI Analytics", command=self._show_ai_analytics).grid(row=16, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Train ML Models", command=self._train_ml_models).grid(row=17, column=0, columnspan=2, pady=5)
         
         # Analysis Options
-        ttk.Separator(self.control_frame, orient='horizontal').grid(row=16, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
-        ttk.Label(self.control_frame, text="Analysis Options:", font=('Arial', 10, 'bold')).grid(row=17, column=0, columnspan=2, pady=5)
+        ttk.Separator(self.control_frame, orient='horizontal').grid(row=18, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        ttk.Label(self.control_frame, text="Analysis Options:", font=('Arial', 10, 'bold')).grid(row=19, column=0, columnspan=2, pady=5)
         
         self.show_ma = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.control_frame, text="Moving Average", variable=self.show_ma).grid(row=18, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Moving Average", variable=self.show_ma).grid(row=20, column=0, columnspan=2, sticky=tk.W)
         
         self.show_volume = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.control_frame, text="Volume", variable=self.show_volume).grid(row=19, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Volume", variable=self.show_volume).grid(row=21, column=0, columnspan=2, sticky=tk.W)
         
         self.show_rsi = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="RSI", variable=self.show_rsi).grid(row=20, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="RSI", variable=self.show_rsi).grid(row=22, column=0, columnspan=2, sticky=tk.W)
         
         self.show_macd = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="MACD", variable=self.show_macd).grid(row=21, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="MACD", variable=self.show_macd).grid(row=23, column=0, columnspan=2, sticky=tk.W)
         
         self.show_bollinger = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="Bollinger Bands", variable=self.show_bollinger).grid(row=22, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Bollinger Bands", variable=self.show_bollinger).grid(row=24, column=0, columnspan=2, sticky=tk.W)
         
         # Advanced indicators
         self.show_stochastic = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="Stochastic", variable=self.show_stochastic).grid(row=23, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Stochastic", variable=self.show_stochastic).grid(row=25, column=0, columnspan=2, sticky=tk.W)
         
         self.show_williams = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="Williams %R", variable=self.show_williams).grid(row=24, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Williams %R", variable=self.show_williams).grid(row=26, column=0, columnspan=2, sticky=tk.W)
         
         # Create matplotlib figure for charts
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(10, 8))
@@ -3097,6 +3104,114 @@ For more details, see README.md
             self.logger.error(f"Auto-enhancement check failed: {e}")
             # Schedule next check even on failure
             self._schedule_auto_enhancement_check()
+            
+    def _show_ai_analytics(self) -> None:
+        """Show AI analytics dialog"""
+        try:
+            dialog = tk.Toplevel(self.root)
+            dialog.title("AI Analytics Dashboard")
+            dialog.geometry("800x600")
+            
+            # Center dialog
+            dialog.transient(self.root)
+            dialog.grab_set()
+            
+            # Create notebook for tabs
+            notebook = ttk.Notebook(dialog)
+            notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            # Predictions tab
+            pred_frame = ttk.Frame(notebook)
+            notebook.add(pred_frame, text="Predictions")
+            
+            ttk.Label(pred_frame, text="Stock Price Predictions", font=('Arial', 12, 'bold')).pack(pady=10)
+            
+            # Create predictions display
+            pred_text = tk.Text(pred_frame, height=15, width=80)
+            pred_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+            
+            if self.ml_models_trained:
+                predictions = []
+                for symbol in list(self.stock_data.keys())[:5]:  # Top 5 stocks
+                    if symbol in self.stock_data:
+                        pred_result = self.ai_analytics.predict_next_day_return(self.stock_data[symbol], symbol)
+                        if 'error' not in pred_result:
+                            pred_return = pred_result['predicted_return']
+                            confidence = pred_result['confidence']
+                            predictions.append(f"{symbol}: {pred_return:.4f} (confidence: {confidence:.2f})")
+                
+                if predictions:
+                    pred_text.insert(tk.END, "\n".join(predictions))
+                else:
+                    pred_text.insert(tk.END, "No predictions available. Train ML models first.")
+            else:
+                pred_text.insert(tk.END, "ML models not trained yet. Click 'Train ML Models' to start.")
+            
+            # Close button
+            ttk.Button(dialog, text="Close", command=dialog.destroy).pack(pady=10)
+            
+            self.logger.info("AI analytics dialog opened")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to show AI analytics: {e}")
+            messagebox.showerror("Error", f"Failed to show AI analytics: {str(e)}")
+            
+    def _train_ml_models(self) -> None:
+        """Train machine learning models for all stocks"""
+        try:
+            # Show progress dialog
+            progress_dialog = tk.Toplevel(self.root)
+            progress_dialog.title("Training ML Models")
+            progress_dialog.geometry("400x150")
+            
+            ttk.Label(progress_dialog, text="Training Machine Learning Models...", font=('Arial', 11, 'bold')).pack(pady=10)
+            
+            progress_var = tk.DoubleVar()
+            progress_bar = ttk.Progressbar(progress_dialog, variable=progress_var, maximum=100)
+            progress_bar.pack(fill=tk.X, padx=20, pady=10)
+            
+            progress_dialog.update()
+            
+            # Train models for each stock
+            total_stocks = len(self.stock_data)
+            trained_count = 0
+            
+            for i, (symbol, data) in enumerate(self.stock_data.items()):
+                if len(data) > 50:  # Need sufficient data
+                    self.logger.info(f"Training ML model for {symbol}...")
+                    
+                    # Update progress
+                    progress = (i / total_stocks) * 100
+                    progress_var.set(progress)
+                    progress_dialog.update()
+                    
+                    # Train model
+                    result = self.ai_analytics.train_price_prediction_model(data, symbol)
+                    if 'error' not in result:
+                        trained_count += 1
+                        self.logger.info(f"Successfully trained model for {symbol}")
+                    else:
+                        self.logger.warning(f"Failed to train model for {symbol}: {result['error']}")
+                        
+            self.ml_models_trained = trained_count > 0
+            
+            # Complete progress
+            progress_var.set(100)
+            progress_dialog.update()
+            
+            # Show completion message
+            if trained_count > 0:
+                messagebox.showinfo("Training Complete", f"Successfully trained ML models for {trained_count} stocks.")
+            else:
+                messagebox.showwarning("Training Failed", "No ML models were trained. Insufficient data.")
+                
+            progress_dialog.destroy()
+            
+            self.logger.info(f"ML training completed. Trained {trained_count}/{total_stocks} models.")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to train ML models: {e}")
+            messagebox.showerror("Error", f"Failed to train ML models: {str(e)}")
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments"""
