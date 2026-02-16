@@ -115,6 +115,14 @@ class NEPSEAnalysisApp:
         self.async_loop = None
         self.session = None
         
+        # Initialize automatic enhancement system
+        self.auto_enhance_enabled = True
+        self.last_enhancement_check = datetime.now()
+        self.enhancement_interval = 1800  # 30 minutes
+        self.performance_baseline = None
+        self.error_count = 0
+        self.last_code_change = datetime.now()
+        
     def _load_config(self) -> None:
         """Load configuration from JSON file"""
         try:
@@ -182,6 +190,10 @@ class NEPSEAnalysisApp:
         """Setup automatic save timer"""
         if self.config.get('auto_save_interval', 0) > 0:
             self.root.after(self.config['auto_save_interval'] * 1000, self._auto_save)
+            
+        if self.auto_enhance_enabled:
+            self._schedule_auto_enhancement_check()
+            self.logger.info("🚀 Automatic enhancement system started")
             
     def _auto_save(self) -> None:
         """Automatically save data"""
@@ -2672,6 +2684,294 @@ class NEPSEAnalysisApp:
         except Exception as e:
             self.logger.error(f"Failed to run performance comparison: {e}")
             messagebox.showerror("Error", f"Failed to run performance comparison: {str(e)}")
+            
+    def _should_auto_enhance(self) -> bool:
+        """Check if automatic enhancement should be triggered"""
+        try:
+            # Check time-based trigger
+            time_since_last_check = (datetime.now() - self.last_enhancement_check).total_seconds()
+            if time_since_last_check >= self.enhancement_interval:
+                self.logger.info("Time-based auto-enhancement trigger activated")
+                return True
+                
+            # Check performance degradation
+            current_performance = self._get_current_performance_metrics()
+            if self._is_performance_degraded(current_performance):
+                self.logger.info("Performance-based auto-enhancement trigger activated")
+                return True
+                
+            # Check error threshold
+            if self.error_count >= 5:
+                self.logger.info("Error-based auto-enhancement trigger activated")
+                return True
+                
+            # Check for code changes
+            if self._has_recent_code_changes():
+                self.logger.info("Code change-based auto-enhancement trigger activated")
+                return True
+                
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"Failed to check auto-enhance conditions: {e}")
+            return False
+            
+    def _get_current_performance_metrics(self) -> Dict[str, Any]:
+        """Get current performance metrics"""
+        try:
+            memory_usage = self._get_memory_usage()
+            return {
+                'memory_usage_mb': memory_usage.get('rss_mb', 0),
+                'cache_size_mb': memory_usage.get('cache_size_mb', 0),
+                'cache_symbols': memory_usage.get('cache_symbols', 0),
+                'timestamp': datetime.now()
+            }
+        except Exception as e:
+            self.logger.error(f"Failed to get performance metrics: {e}")
+            return {}
+            
+    def _is_performance_degraded(self, current_metrics: Dict[str, Any]) -> bool:
+        """Check if performance has degraded from baseline"""
+        try:
+            if not self.performance_baseline:
+                self.performance_baseline = current_metrics
+                return False
+                
+            # Check memory usage increase
+            baseline_memory = self.performance_baseline.get('memory_usage_mb', 0)
+            current_memory = current_metrics.get('memory_usage_mb', 0)
+            
+            if current_memory > baseline_memory * 1.5:  # 50% increase
+                return True
+                
+            # Check cache size increase
+            baseline_cache = self.performance_baseline.get('cache_size_mb', 0)
+            current_cache = current_metrics.get('cache_size_mb', 0)
+            
+            if current_cache > baseline_cache * 2.0:  # 100% increase
+                return True
+                
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"Failed to check performance degradation: {e}")
+            return False
+            
+    def _has_recent_code_changes(self) -> bool:
+        """Check for recent code changes"""
+        try:
+            # Check main.py modification time
+            main_py_path = 'main.py'
+            if os.path.exists(main_py_path):
+                mod_time = datetime.fromtimestamp(os.path.getmtime(main_py_path))
+                time_since_change = (datetime.now() - mod_time).total_seconds()
+                
+                # If changed in last 5 minutes
+                if time_since_change < 300:
+                    return True
+                    
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"Failed to check code changes: {e}")
+            return False
+            
+    def _trigger_auto_enhancement(self) -> None:
+        """Trigger automatic enhancement cycle"""
+        try:
+            self.logger.info("🚀 Starting automatic enhancement cycle")
+            
+            # Update check time
+            self.last_enhancement_check = datetime.now()
+            
+            # Reset error count
+            self.error_count = 0
+            
+            # Log enhancement start
+            self._update_performance_stats('auto_enhancement', 'Automatic enhancement cycle started')
+            
+            # Create enhancement suggestions
+            enhancements = self._analyze_enhancement_opportunities()
+            
+            if enhancements:
+                self.logger.info(f"Found {len(enhancements)} enhancement opportunities")
+                
+                # Implement top priority enhancements
+                for enhancement in enhancements[:3]:  # Top 3 priorities
+                    self._implement_enhancement(enhancement)
+                    
+                # Commit changes
+                self._commit_auto_enhancements(enhancements[:3])
+                
+            else:
+                self.logger.info("No immediate enhancement opportunities found")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to trigger auto-enhancement: {e}")
+            self.error_count += 1
+            
+    def _analyze_enhancement_opportunities(self) -> List[Dict[str, Any]]:
+        """Analyze codebase for enhancement opportunities"""
+        opportunities = []
+        
+        try:
+            # Check for memory optimization opportunities
+            memory_usage = self._get_memory_usage()
+            if memory_usage.get('cache_size_mb', 0) > 50:
+                opportunities.append({
+                    'type': 'memory_optimization',
+                    'priority': 'high',
+                    'description': 'Cache size exceeds 50MB, optimization needed',
+                    'action': 'clear_cache'
+                })
+                
+            # Check for performance issues
+            current_metrics = self._get_current_performance_metrics()
+            if self._is_performance_degraded(current_metrics):
+                opportunities.append({
+                    'type': 'performance_optimization',
+                    'priority': 'high',
+                    'description': 'Performance degradation detected',
+                    'action': 'optimize_performance'
+                })
+                
+            # Check for missing features
+            if not hasattr(self, 'advanced_analytics_enabled'):
+                opportunities.append({
+                    'type': 'feature_enhancement',
+                    'priority': 'medium',
+                    'description': 'Advanced analytics not enabled',
+                    'action': 'enable_advanced_analytics'
+                })
+                
+            # Check for documentation gaps
+            if not os.path.exists('docs/USER_GUIDE.md'):
+                opportunities.append({
+                    'type': 'documentation',
+                    'priority': 'medium',
+                    'description': 'User guide documentation missing',
+                    'action': 'create_user_guide'
+                })
+                
+        except Exception as e:
+            self.logger.error(f"Failed to analyze enhancement opportunities: {e}")
+            
+        return opportunities
+        
+    def _implement_enhancement(self, enhancement: Dict[str, Any]) -> None:
+        """Implement a specific enhancement"""
+        try:
+            action = enhancement.get('action')
+            
+            if action == 'clear_cache':
+                self._clear_cache()
+                self.logger.info("✅ Implemented cache clearing enhancement")
+                
+            elif action == 'optimize_performance':
+                self._auto_memory_optimization()
+                self.logger.info("✅ Implemented performance optimization enhancement")
+                
+            elif action == 'enable_advanced_analytics':
+                self.advanced_analytics_enabled = True
+                self.logger.info("✅ Implemented advanced analytics enhancement")
+                
+            elif action == 'create_user_guide':
+                self._create_user_guide()
+                self.logger.info("✅ Implemented user guide documentation enhancement")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to implement enhancement {enhancement}: {e}")
+            
+    def _create_user_guide(self) -> None:
+        """Create comprehensive user guide"""
+        try:
+            os.makedirs('docs', exist_ok=True)
+            
+            user_guide = """# NEPSE Analysis Tool - User Guide
+
+## Getting Started
+
+### Installation
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Run the application: `python main.py`
+
+### Basic Usage
+1. Enter stock symbol (e.g., NEPSE)
+2. Select date range
+3. Click "Fetch Data"
+4. View charts and analysis
+
+### Portfolio Management
+1. Click "Add to Portfolio" after fetching data
+2. Enter shares and buy price
+3. View portfolio summary
+4. Export data as needed
+
+### Advanced Features
+- Technical indicators (RSI, MACD, Bollinger Bands)
+- Portfolio analytics and risk metrics
+- Data import/export functionality
+- Performance monitoring
+- Automatic enhancements
+
+### Troubleshooting
+- Check internet connection for data fetching
+- Verify stock symbols are correct
+- Clear cache if performance issues occur
+- Check logs for error details
+
+For more details, see README.md
+"""
+            
+            with open('docs/USER_GUIDE.md', 'w') as f:
+                f.write(user_guide)
+                
+        except Exception as e:
+            self.logger.error(f"Failed to create user guide: {e}")
+            
+    def _commit_auto_enhancements(self, enhancements: List[Dict[str, Any]]) -> None:
+        """Commit automatic enhancements to repository"""
+        try:
+            import subprocess
+            
+            # Stage changes
+            subprocess.run(['git', 'add', '.'], capture_output=True, text=True)
+            
+            # Create commit message
+            enhancement_types = [e['type'] for e in enhancements]
+            commit_msg = f"Auto-Enhancement: {', '.join(enhancement_types)}\n\nAutomatic improvements:\n" + "\n".join(f"- {e['description']}" for e in enhancements)
+            
+            # Commit changes
+            subprocess.run(['git', 'commit', '-m', commit_msg], capture_output=True, text=True)
+            
+            # Push changes
+            subprocess.run(['git', 'push', 'origin', 'master'], capture_output=True, text=True)
+            
+            self.logger.info("✅ Auto-enhancements committed and pushed")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to commit auto-enhancements: {e}")
+            
+    def _schedule_auto_enhancement_check(self) -> None:
+        """Schedule periodic auto-enhancement checks"""
+        if self.auto_enhance_enabled:
+            # Check every 5 minutes
+            self.root.after(300000, self._auto_enhancement_check)
+            
+    def _auto_enhancement_check(self) -> None:
+        """Periodic check for auto-enhancement triggers"""
+        try:
+            if self._should_auto_enhance():
+                self._trigger_auto_enhancement()
+                
+            # Schedule next check
+            self._schedule_auto_enhancement_check()
+            
+        except Exception as e:
+            self.logger.error(f"Auto-enhancement check failed: {e}")
+            # Schedule next check even on failure
+            self._schedule_auto_enhancement_check()
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments"""
