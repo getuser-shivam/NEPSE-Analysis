@@ -52,6 +52,16 @@ class NEPSEAnalysisApp:
         # Setup auto-save
         self._setup_auto_save()
         
+        # Setup keyboard shortcuts
+        self._setup_keyboard_shortcuts()
+        
+        # Initialize progress tracking
+        self.progress_var = tk.StringVar()
+        self.progress_var.set("")
+        
+        # Track application start time
+        self.start_time = datetime.now()
+        
     def _load_config(self) -> None:
         """Load configuration from JSON file"""
         try:
@@ -195,11 +205,17 @@ class NEPSEAnalysisApp:
         self.watchlist_frame.grid(row=16, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
         
     def create_widgets(self):
-        # Stock Symbol Input
-        ttk.Label(self.control_frame, text="Stock Symbol:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.symbol_entry = ttk.Entry(self.control_frame, width=20)
-        self.symbol_entry.grid(row=0, column=1, pady=5, padx=5)
+        # Stock Symbol Input with tooltip
+        symbol_frame = ttk.Frame(self.control_frame)
+        symbol_frame.grid(row=0, column=0, columnspan=2, pady=5, sticky=(tk.W, tk.E))
+        
+        ttk.Label(symbol_frame, text="Stock Symbol:").pack(side=tk.LEFT, padx=(0, 5))
+        self.symbol_entry = ttk.Entry(symbol_frame, width=20)
+        self.symbol_entry.pack(side=tk.LEFT, padx=5)
         self.symbol_entry.insert(0, "NEPSE")
+        
+        # Add tooltip for symbol entry
+        self._create_tooltip(self.symbol_entry, "Enter stock symbol (e.g., NEPSE, AAPL, GOOG)")
         
         # Date Range
         ttk.Label(self.control_frame, text="Start Date:").grid(row=1, column=0, sticky=tk.W, pady=5)
@@ -272,11 +288,15 @@ class NEPSEAnalysisApp:
         
         self.watchlist_tree.pack(fill=tk.BOTH, expand=True)
         
-        # Status bar
+        # Status bar with progress indicator
         self.status_var = tk.StringVar()
         self.status_var.set("Ready")
         self.status_bar = ttk.Label(self.main_frame, textvariable=self.status_var, relief=tk.SUNKEN)
         self.status_bar.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(5, 0))
+        
+        # Progress bar for long operations
+        self.progress_bar = ttk.Progressbar(self.main_frame, mode='indeterminate')
+        # Initially hidden, shown during operations
         
     def fetch_stock_data(self) -> None:
         """Fetch stock data with improved validation and error handling"""
@@ -315,6 +335,10 @@ class NEPSEAnalysisApp:
             
         self.logger.info(f"Fetching data for {symbol} from {start_date} to {end_date}")
         self.status_var.set(f"Fetching data for {symbol}...")
+        
+        # Show progress bar
+        self.progress_bar.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(2, 0))
+        self.progress_bar.start(10)
         
         # Run data fetching in separate thread to avoid freezing GUI
         thread = threading.Thread(target=self._fetch_data_thread, args=(symbol, start_date, end_date))
@@ -360,12 +384,14 @@ class NEPSEAnalysisApp:
             self.root.after(0, self._update_chart, symbol, data)
             self.root.after(0, lambda: self.status_var.set(f"Data fetched for {symbol}"))
             self.root.after(0, lambda: self.update_watchlist_display())  # Update watchlist if symbol is in it
+            self.root.after(0, self._hide_progress_bar)
             
         except Exception as e:
             error_msg = f"Failed to fetch data for {symbol}: {str(e)}"
             self.logger.error(error_msg)
             self.root.after(0, lambda: messagebox.showerror("Fetch Error", error_msg))
             self.root.after(0, lambda: self.status_var.set("Error fetching data"))
+            self.root.after(0, self._hide_progress_bar)
             
     def _validate_data_quality(self, data: pd.DataFrame, symbol: str) -> bool:
         """Validate the quality and integrity of fetched data"""
@@ -720,26 +746,188 @@ class NEPSEAnalysisApp:
         
         messagebox.showinfo("Portfolio Summary", summary)
         
-    def export_data(self):
+    def export_data(self) -> None:
+        """Export data with multiple format options"""
         if not self.stock_data:
             messagebox.showerror("Error", "No data to export")
             return
             
-        filename = filedialog.asksaveasfilename(
-            defaultextension=".csv",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
-        )
+        # Create export dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Export Data")
+        dialog.geometry("400x300")
+        dialog.resizable(False, False)
         
-        if filename:
-            # Combine all stock data
-            all_data = pd.DataFrame()
-            for symbol, data in self.stock_data.items():
-                data_copy = data.copy()
-                data_copy['Symbol'] = symbol
-                all_data = pd.concat([all_data, data_copy])
+        # Center the dialog
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        ttk.Label(dialog, text="Export Options", font=('Arial', 12, 'bold')).pack(pady=10)
+        
+        # Format selection
+        format_frame = ttk.LabelFrame(dialog, text="Format", padding="10")
+        format_frame.pack(pady=10, padx=20, fill=tk.BOTH, expand=True)
+        
+        format_var = tk.StringVar(value="csv")
+        ttk.Radiobutton(format_frame, text="CSV (Comma Separated Values)", variable=format_var, value="csv").pack(anchor='w')
+        ttk.Radiobutton(format_frame, text="Excel (XLSX)", variable=format_var, value="xlsx").pack(anchor='w')
+        ttk.Radiobutton(format_frame, text="JSON", variable=format_var, value="json").pack(anchor='w')
+        
+        # Data selection
+        data_frame = ttk.LabelFrame(dialog, text="Data to Export", padding="10")
+        data_frame.pack(pady=10, padx=20, fill=tk.BOTH, expand=True)
+        
+        export_portfolio = tk.BooleanVar(value=True)
+        export_watchlist = tk.BooleanVar(value=True)
+        export_stock_data = tk.BooleanVar(value=True)
+        
+        ttk.Checkbutton(data_frame, text="Portfolio Data", variable=export_portfolio).pack(anchor='w')
+        ttk.Checkbutton(data_frame, text="Watchlist", variable=export_watchlist).pack(anchor='w')
+        ttk.Checkbutton(data_frame, text="Stock Price Data", variable=export_stock_data).pack(anchor='w')
+        
+        def do_export():
+            try:
+                selected_format = format_var.get()
+                
+                # Set file extension based on format
+                extensions = {
+                    'csv': '.csv',
+                    'xlsx': '.xlsx',
+                    'json': '.json'
+                }
+                
+                filename = filedialog.asksaveasfilename(
+                    defaultextension=extensions[selected_format],
+                    filetypes=[
+                        (f"{selected_format.upper()} files", f"*{extensions[selected_format]}"),
+                        ("All files", "*.*")
+                    ],
+                    initialfile=f"nepse_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}{extensions[selected_format]}"
+                )
+                
+                if filename:
+                    self._show_progress_bar("Exporting data...")
+                    
+                    if selected_format == 'csv':
+                        self._export_csv(filename, export_portfolio.get(), export_watchlist.get(), export_stock_data.get())
+                    elif selected_format == 'xlsx':
+                        self._export_excel(filename, export_portfolio.get(), export_watchlist.get(), export_stock_data.get())
+                    elif selected_format == 'json':
+                        self._export_json(filename, export_portfolio.get(), export_watchlist.get(), export_stock_data.get())
+                    
+                    dialog.destroy()
+                    messagebox.showinfo("Success", f"Data exported to {filename}")
+                    
+            except Exception as e:
+                self.logger.error(f"Export failed: {e}")
+                messagebox.showerror("Export Error", f"Failed to export data: {str(e)}")
+            finally:
+                self._hide_progress_bar()
+        
+        # Buttons
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=20)
+        
+        ttk.Button(button_frame, text="Export", command=do_export).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
             
-            all_data.to_csv(filename)
-            messagebox.showinfo("Success", f"Data exported to {filename}")
+    def _export_csv(self, filename: str, export_portfolio: bool, export_watchlist: bool, export_stock_data: bool) -> None:
+        """Export data to CSV format"""
+        import csv
+        with open(filename, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            
+            # Export portfolio
+            if export_portfolio and self.portfolio:
+                writer.writerow(['Portfolio Data'])
+                writer.writerow(['Symbol', 'Shares', 'Buy Price', 'Current Price', 'Gain/Loss', 'Gain/Loss %'])
+                for symbol, data in self.portfolio.items():
+                    gain_loss = (data['current_price'] - data['buy_price']) * data['shares']
+                    gain_loss_pct = ((data['current_price'] - data['buy_price']) / data['buy_price']) * 100
+                    writer.writerow([symbol, data['shares'], data['buy_price'], data['current_price'], gain_loss, gain_loss_pct])
+                writer.writerow([])  # Empty row
+            
+            # Export watchlist
+            if export_watchlist and self.watchlist:
+                writer.writerow(['Watchlist'])
+                writer.writerow(['Symbol'])
+                for symbol in self.watchlist:
+                    writer.writerow([symbol])
+                writer.writerow([])  # Empty row
+            
+            # Export stock data
+            if export_stock_data and self.stock_data:
+                writer.writerow(['Stock Price Data'])
+                for symbol, data in self.stock_data.items():
+                    writer.writerow([f'Data for {symbol}'])
+                    writer.writerow(['Date', 'Open', 'High', 'Low', 'Close', 'Volume'])
+                    for date, row in data.iterrows():
+                        writer.writerow([date.strftime('%Y-%m-%d'), row['Open'], row['High'], row['Low'], row['Close'], row['Volume']])
+                    writer.writerow([])  # Empty row
+                    
+    def _export_excel(self, filename: str, export_portfolio: bool, export_watchlist: bool, export_stock_data: bool) -> None:
+        """Export data to Excel format"""
+        try:
+            with pd.ExcelWriter(filename, engine='openpyxl') as writer:
+                # Export portfolio
+                if export_portfolio and self.portfolio:
+                    portfolio_data = []
+                    for symbol, data in self.portfolio.items():
+                        gain_loss = (data['current_price'] - data['buy_price']) * data['shares']
+                        gain_loss_pct = ((data['current_price'] - data['buy_price']) / data['buy_price']) * 100
+                        portfolio_data.append({
+                            'Symbol': symbol,
+                            'Shares': data['shares'],
+                            'Buy Price': data['buy_price'],
+                            'Current Price': data['current_price'],
+                            'Gain/Loss': gain_loss,
+                            'Gain/Loss %': gain_loss_pct
+                        })
+                    pd.DataFrame(portfolio_data).to_excel(writer, sheet_name='Portfolio', index=False)
+                
+                # Export watchlist
+                if export_watchlist and self.watchlist:
+                    watchlist_data = [{'Symbol': symbol} for symbol in self.watchlist]
+                    pd.DataFrame(watchlist_data).to_excel(writer, sheet_name='Watchlist', index=False)
+                
+                # Export stock data
+                if export_stock_data and self.stock_data:
+                    for symbol, data in self.stock_data.items():
+                        # Clean sheet name (Excel has restrictions)
+                        sheet_name = symbol.replace('/', '_').replace('\\', '_')[:31]
+                        data.to_excel(writer, sheet_name=sheet_name)
+                        
+        except ImportError:
+            # Fallback to CSV if openpyxl not available
+            self.logger.warning("openpyxl not available, falling back to CSV")
+            self._export_csv(filename.replace('.xlsx', '.csv'), export_portfolio, export_watchlist, export_stock_data)
+            
+    def _export_json(self, filename: str, export_portfolio: bool, export_watchlist: bool, export_stock_data: bool) -> None:
+        """Export data to JSON format"""
+        export_data = {
+            'export_date': datetime.now().isoformat(),
+            'application': 'NEPSE Stock Analysis Tool'
+        }
+        
+        if export_portfolio:
+            export_data['portfolio'] = self.portfolio
+            
+        if export_watchlist:
+            export_data['watchlist'] = self.watchlist
+            
+        if export_stock_data:
+            # Convert DataFrames to JSON-serializable format
+            stock_data_json = {}
+            for symbol, data in self.stock_data.items():
+                stock_data_json[symbol] = {
+                    'dates': [date.isoformat() for date in data.index],
+                    'columns': data.columns.tolist(),
+                    'data': data.values.tolist()
+                }
+            export_data['stock_data'] = stock_data_json
+            
+        with open(filename, 'w') as f:
+            json.dump(export_data, f, indent=2, default=str)
             
     def add_to_watchlist(self) -> None:
         """Add stock to watchlist with validation and logging"""
@@ -807,6 +995,8 @@ class NEPSEAnalysisApp:
     def save_data(self) -> None:
         """Save data with comprehensive error handling and logging"""
         try:
+            self._show_progress_bar("Saving data...")
+            
             # Create backup before saving
             if self.config.get('backup_enabled', True):
                 self._create_backup()
@@ -851,6 +1041,8 @@ class NEPSEAnalysisApp:
             self.logger.error(f"Critical error during save: {e}")
             messagebox.showerror("Save Error", f"Failed to save data: {str(e)}")
             self.status_var.set("Save failed")
+        finally:
+            self._hide_progress_bar()
             
     def load_data(self) -> None:
         """Load data with comprehensive error handling and validation"""
@@ -921,6 +1113,50 @@ class NEPSEAnalysisApp:
             self.logger.info(f"Successfully loaded data from: {', '.join(loaded_files)}")
         else:
             self.logger.info("No existing data found, starting fresh")
+            
+    def _setup_keyboard_shortcuts(self) -> None:
+        """Setup keyboard shortcuts for common actions"""
+        self.root.bind('<Control-f>', lambda e: self.fetch_stock_data())
+        self.root.bind('<Control-s>', lambda e: self.save_data())
+        self.root.bind('<Control-e>', lambda e: self.export_data())
+        self.root.bind('<Control-p>', lambda e: self.show_portfolio())
+        self.root.bind('<Control-w>', lambda e: self.add_to_watchlist())
+        self.root.bind('<Control-r>', lambda e: self._refresh_current_data())
+        self.root.bind('<F5>', lambda e: self._refresh_current_data())
+        self.logger.info("Keyboard shortcuts configured")
+        
+    def _refresh_current_data(self) -> None:
+        """Refresh data for currently displayed symbol"""
+        current_symbol = self.symbol_entry.get().strip().upper()
+        if current_symbol and self._validate_symbol(current_symbol):
+            self.logger.info(f"Refreshing data for {current_symbol}")
+            self.fetch_stock_data()
+        else:
+            messagebox.showinfo("Refresh", "Please enter a valid symbol to refresh")
+            
+    def _hide_progress_bar(self) -> None:
+        """Hide the progress bar"""
+        self.progress_bar.stop()
+        self.progress_bar.grid_forget()
+        
+    def _create_tooltip(self, widget, text: str) -> None:
+        """Create a tooltip for a widget"""
+        def on_enter(event):
+            tooltip = tk.Toplevel()
+            tooltip.wm_overrideredirect(True)
+            tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
+            label = tk.Label(tooltip, text=text, background="lightyellow", 
+                           relief="solid", borderwidth=1, font=("Arial", 9))
+            label.pack()
+            widget.tooltip = tooltip
+            
+        def on_leave(event):
+            if hasattr(widget, 'tooltip'):
+                widget.tooltip.destroy()
+                del widget.tooltip
+                
+        widget.bind('<Enter>', on_enter)
+        widget.bind('<Leave>', on_leave)
             
     def _cleanup_old_data(self) -> None:
         """Clean up old data based on configuration"""
