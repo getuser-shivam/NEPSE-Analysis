@@ -304,7 +304,8 @@ class WorkflowTriggerGUI:
     def complete_workflow(self, workflow_name, duration):
         """Handle workflow completion"""
         self.output_text.insert(tk.END, f"\n✅ Workflow '{workflow_name}' completed successfully!\n")
-        self.output_text.insert(tk.END, ".2f"        self.output_text.insert(tk.END, "=" * 50 + "\n")
+        self.output_text.insert(tk.END, f"Duration: {duration:.2f} seconds\n")
+        self.output_text.insert(tk.END, "=" * 50 + "\n")
 
         self.status_var.set("Ready")
         self.progress_bar.grid_remove()
