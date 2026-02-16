@@ -1,0 +1,65 @@
+2026-02-16 12:57:42,206 - INFO - NEPSE Analysis App started
+2026-02-16 12:57:42,207 - ERROR - Failed to load configuration: Expecting value: line 1 column 1 (char 0)
+2026-02-16 12:57:42,207 - INFO - No existing data found, starting fresh
+2026-02-16 12:57:42,443 - INFO - Keyboard shortcuts configured
+2026-02-16 12:57:42,445 - INFO - Notification system initialized
+2026-02-16 12:57:42,446 - INFO - Chart interactivity enabled
+2026-02-16 12:57:48,716 - INFO - Fetching data for NEPSE from 2025-02-16 to 2026-02-16
+2026-02-16 12:57:48,717 - INFO - Starting data fetch for NEPSE
+2026-02-16 12:57:49,274 - INFO - NEPSE API failed for NEPSE, trying Yahoo Finance
+2026-02-16 12:57:51,916 - ERROR - HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: NEPSE"}}}
+2026-02-16 12:57:52,104 - ERROR - $NEPSE: possibly delisted; no timezone found
+2026-02-16 12:57:52,104 - INFO - Yahoo Finance returned 0 records for NEPSE
+2026-02-16 12:57:52,105 - INFO - All APIs failed for NEPSE, using simulated data
+2026-02-16 12:57:52,110 - INFO - Successfully fetched and validated data for NEPSE: 261 records
+2026-02-16 12:57:52,577 - INFO - Chart updated successfully for NEPSE
+2026-02-16 13:12:56,728 - INFO - NEPSE Analysis App started
+2026-02-16 13:12:56,732 - ERROR - Failed to load configuration: Expecting value: line 1 column 1 (char 0)
+2026-02-16 13:12:56,733 - INFO - No existing data found, starting fresh
+2026-02-16 13:12:56,973 - INFO - Keyboard shortcuts configured
+2026-02-16 13:12:56,975 - INFO - Notification system initialized
+2026-02-16 13:12:56,975 - INFO - Chart interactivity enabled
+2026-02-16 13:13:28,446 - INFO - Fetching data for NEPSE from 2025-02-16 to 2026-02-16
+2026-02-16 13:13:28,448 - INFO - Starting data fetch for NEPSE
+2026-02-16 13:13:28,971 - INFO - NEPSE API failed for NEPSE, trying Yahoo Finance
+2026-02-16 13:13:34,057 - INFO - Switched to dark theme
+2026-02-16 13:13:39,715 - INFO - Switched to light theme
+2026-02-16 13:13:44,424 - INFO - Fetching data for NEPSE from 2025-02-16 to 2026-02-16
+2026-02-16 13:13:44,425 - INFO - Starting data fetch for NEPSE
+2026-02-16 13:13:44,918 - INFO - NEPSE API failed for NEPSE, trying Yahoo Finance
+2026-02-16 13:13:45,426 - INFO - Fetching data for NEPSE from 2025-02-16 to 2026-02-16
+2026-02-16 13:13:45,427 - INFO - Starting data fetch for NEPSE
+2026-02-16 13:13:45,903 - INFO - NEPSE API failed for NEPSE, trying Yahoo Finance
+2026-02-16 13:13:49,380 - ERROR - $NEPSE: possibly delisted; no timezone found
+2026-02-16 13:13:49,381 - INFO - Yahoo Finance returned 0 records for NEPSE
+2026-02-16 13:13:49,382 - INFO - All APIs failed for NEPSE, using simulated data
+2026-02-16 13:13:49,401 - INFO - Successfully fetched and validated data for NEPSE: 261 records
+2026-02-16 13:13:49,402 - ERROR - HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: NEPSE"}}}
+2026-02-16 13:13:49,901 - INFO - Chart updated successfully for NEPSE
+2026-02-16 13:13:50,019 - ERROR - $NEPSE: possibly delisted; no timezone found
+2026-02-16 13:13:50,020 - INFO - Yahoo Finance returned 0 records for NEPSE
+2026-02-16 13:13:50,020 - INFO - All APIs failed for NEPSE, using simulated data
+2026-02-16 13:13:50,025 - INFO - Successfully fetched and validated data for NEPSE: 261 records
+2026-02-16 13:13:50,026 - ERROR - HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: NEPSE"}}}
+2026-02-16 13:13:50,362 - ERROR - $NEPSE: possibly delisted; no timezone found
+2026-02-16 13:13:50,362 - INFO - Yahoo Finance returned 0 records for NEPSE
+2026-02-16 13:13:50,363 - INFO - All APIs failed for NEPSE, using simulated data
+2026-02-16 13:13:50,368 - INFO - Successfully fetched and validated data for NEPSE: 261 records
+2026-02-16 13:13:50,550 - INFO - Chart updated successfully for NEPSE
+2026-02-16 13:13:50,999 - INFO - Chart updated successfully for NEPSE
+2026-02-16 13:17:56,985 - ERROR - Critical error during save: 'NEPSEAnalysisApp' object has no attribute '_show_progress_bar'
+2026-02-16 13:18:05,326 - INFO - Auto-save completed
+2026-02-16 13:18:14,087 - INFO - Async Yahoo Finance returned 250 records for AAPL
+2026-02-16 13:18:14,091 - INFO - Async fetched AAPL: 250 records
+2026-02-16 13:18:14,129 - INFO - Async Yahoo Finance returned 250 records for GOOGL
+2026-02-16 13:18:14,130 - INFO - Async fetched GOOGL: 250 records
+2026-02-16 13:18:14,170 - INFO - Async Yahoo Finance returned 250 records for MSFT
+2026-02-16 13:18:14,188 - INFO - Async fetched MSFT: 250 records
+2026-02-16 13:18:14,222 - INFO - Async Yahoo Finance returned 250 records for AMZN
+2026-02-16 13:18:14,224 - INFO - Async fetched AMZN: 250 records
+2026-02-16 13:18:14,254 - INFO - Async Yahoo Finance returned 250 records for TSLA
+2026-02-16 13:18:14,255 - INFO - Async fetched TSLA: 250 records
+2026-02-16 13:18:14,275 - INFO - Performance comparison completed
+2026-02-16 13:22:25,531 - INFO - NEPSE Analysis App started
+2026-02-16 13:22:25,531 - ERROR - Failed to load configuration: Expecting value: line 1 column 1 (char 0)
+2026-02-16 13:22:25,532 - INFO - No existing data found, starting fresh
