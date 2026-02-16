@@ -10,6 +10,10 @@ from bs4 import BeautifulSoup
 import json
 from datetime import datetime, timedelta
 import threading
+import os
+import pickle
+import seaborn as sns
+from scipy import stats
 
 class NEPSEAnalysisApp:
     def __init__(self, root):
@@ -20,6 +24,13 @@ class NEPSEAnalysisApp:
         # Stock data storage
         self.stock_data = {}
         self.portfolio = {}
+        self.watchlist = []
+        self.data_file = "nepse_data.pkl"
+        self.portfolio_file = "portfolio.pkl"
+        self.watchlist_file = "watchlist.pkl"
+        
+        # Load saved data
+        self.load_data()
         
         # Create main frames
         self.create_frames()
@@ -48,6 +59,10 @@ class NEPSEAnalysisApp:
         self.portfolio_frame = ttk.LabelFrame(self.main_frame, text="Portfolio", padding="10")
         self.portfolio_frame.grid(row=1, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(10, 0))
         
+        # Watchlist frame
+        self.watchlist_frame = ttk.LabelFrame(self.control_frame, text="Watchlist", padding="5")
+        self.watchlist_frame.grid(row=16, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        
     def create_widgets(self):
         # Stock Symbol Input
         ttk.Label(self.control_frame, text="Stock Symbol:").grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -69,21 +84,29 @@ class NEPSEAnalysisApp:
         # Buttons
         ttk.Button(self.control_frame, text="Fetch Data", command=self.fetch_stock_data).grid(row=3, column=0, columnspan=2, pady=10)
         ttk.Button(self.control_frame, text="Add to Portfolio", command=self.add_to_portfolio).grid(row=4, column=0, columnspan=2, pady=5)
-        ttk.Button(self.control_frame, text="Show Portfolio", command=self.show_portfolio).grid(row=5, column=0, columnspan=2, pady=5)
-        ttk.Button(self.control_frame, text="Export Data", command=self.export_data).grid(row=6, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Add to Watchlist", command=self.add_to_watchlist).grid(row=5, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Show Portfolio", command=self.show_portfolio).grid(row=6, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Export Data", command=self.export_data).grid(row=7, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Save Data", command=self.save_data).grid(row=8, column=0, columnspan=2, pady=5)
         
         # Analysis Options
-        ttk.Separator(self.control_frame, orient='horizontal').grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
-        ttk.Label(self.control_frame, text="Analysis Options:", font=('Arial', 10, 'bold')).grid(row=8, column=0, columnspan=2, pady=5)
+        ttk.Separator(self.control_frame, orient='horizontal').grid(row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        ttk.Label(self.control_frame, text="Analysis Options:", font=('Arial', 10, 'bold')).grid(row=10, column=0, columnspan=2, pady=5)
         
         self.show_ma = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.control_frame, text="Moving Average", variable=self.show_ma).grid(row=9, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Moving Average", variable=self.show_ma).grid(row=11, column=0, columnspan=2, sticky=tk.W)
         
         self.show_volume = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.control_frame, text="Volume", variable=self.show_volume).grid(row=10, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Volume", variable=self.show_volume).grid(row=12, column=0, columnspan=2, sticky=tk.W)
         
         self.show_rsi = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="RSI", variable=self.show_rsi).grid(row=11, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="RSI", variable=self.show_rsi).grid(row=13, column=0, columnspan=2, sticky=tk.W)
+        
+        self.show_macd = tk.BooleanVar(value=False)
+        ttk.Checkbutton(self.control_frame, text="MACD", variable=self.show_macd).grid(row=14, column=0, columnspan=2, sticky=tk.W)
+        
+        self.show_bollinger = tk.BooleanVar(value=False)
+        ttk.Checkbutton(self.control_frame, text="Bollinger Bands", variable=self.show_bollinger).grid(row=15, column=0, columnspan=2, sticky=tk.W)
         
         # Create matplotlib figure for charts
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(10, 8))
@@ -105,6 +128,18 @@ class NEPSEAnalysisApp:
         self.portfolio_tree.column('Gain/Loss', width=100)
         
         self.portfolio_tree.pack(fill=tk.BOTH, expand=True)
+        
+        # Watchlist Treeview
+        self.watchlist_tree = ttk.Treeview(self.watchlist_frame, columns=('Symbol', 'Price', 'Change'), show='headings', height=6)
+        self.watchlist_tree.heading('Symbol', text='Symbol')
+        self.watchlist_tree.heading('Price', text='Price')
+        self.watchlist_tree.heading('Change', text='Change')
+        
+        self.watchlist_tree.column('Symbol', width=80)
+        self.watchlist_tree.column('Price', width=60)
+        self.watchlist_tree.column('Change', width=60)
+        
+        self.watchlist_tree.pack(fill=tk.BOTH, expand=True)
         
         # Status bar
         self.status_var = tk.StringVar()
@@ -130,12 +165,16 @@ class NEPSEAnalysisApp:
         
     def _fetch_data_thread(self, symbol, start_date, end_date):
         try:
-            # Try to fetch from yfinance (works for major indices)
-            ticker = yf.Ticker(symbol)
-            data = ticker.history(start=start_date, end=end_date)
+            # Try to fetch from NEPSE API first
+            data = self._fetch_nepse_data(symbol, start_date, end_date)
+            
+            if data is None or data.empty:
+                # Fallback to yfinance
+                ticker = yf.Ticker(symbol)
+                data = ticker.history(start=start_date, end=end_date)
             
             if data.empty:
-                # If yfinance fails, try to simulate NEPSE data
+                # If both fail, simulate NEPSE data
                 data = self._simulate_nepse_data(symbol, start_date, end_date)
             
             self.stock_data[symbol] = data
@@ -184,43 +223,87 @@ class NEPSEAnalysisApp:
         
         return data
         
+    def _fetch_nepse_data(self, symbol, start_date, end_date):
+        """Fetch data from NEPSE API or web scraping"""
+        try:
+            # Try to get live data from NEPSE website
+            url = "https://nepalstock.com.np/"
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, 'html.parser')
+                # This is a simplified version - real implementation would need to parse actual NEPSE data
+                # For now, return None to use fallback methods
+                return None
+            
+        except Exception as e:
+            print(f"NEPSE API error: {e}")
+            return None
+        
     def _update_chart(self, symbol, data):
         # Clear previous plots
         self.ax1.clear()
         self.ax2.clear()
         
+        # Set style
+        plt.style.use('seaborn-v0_8')
+        
         # Plot price chart
-        self.ax1.plot(data.index, data['Close'], label='Close Price', linewidth=2)
+        self.ax1.plot(data.index, data['Close'], label='Close Price', linewidth=2, color='blue')
         
         # Add moving average if selected
         if self.show_ma.get():
             ma_20 = data['Close'].rolling(window=20).mean()
             ma_50 = data['Close'].rolling(window=50).mean()
-            self.ax1.plot(data.index, ma_20, label='20-day MA', alpha=0.7)
-            self.ax1.plot(data.index, ma_50, label='50-day MA', alpha=0.7)
+            self.ax1.plot(data.index, ma_20, label='20-day MA', alpha=0.7, color='orange')
+            self.ax1.plot(data.index, ma_50, label='50-day MA', alpha=0.7, color='red')
         
-        self.ax1.set_title(f'{symbol} Stock Price')
+        # Add Bollinger Bands if selected
+        if self.show_bollinger.get():
+            bb_upper, bb_middle, bb_lower = self._calculate_bollinger_bands(data['Close'])
+            self.ax1.plot(data.index, bb_upper, label='BB Upper', alpha=0.5, color='gray', linestyle='--')
+            self.ax1.plot(data.index, bb_middle, label='BB Middle', alpha=0.5, color='gray')
+            self.ax1.plot(data.index, bb_lower, label='BB Lower', alpha=0.5, color='gray', linestyle='--')
+            self.ax1.fill_between(data.index, bb_upper, bb_lower, alpha=0.1, color='gray')
+        
+        self.ax1.set_title(f'{symbol} Stock Price', fontweight='bold')
         self.ax1.set_ylabel('Price (NPR)')
         self.ax1.legend()
         self.ax1.grid(True, alpha=0.3)
         
-        # Plot volume if selected
+        # Plot volume or indicators based on selection
         if self.show_volume.get():
             self.ax2.bar(data.index, data['Volume'], alpha=0.7, color='orange')
-            self.ax2.set_title('Trading Volume')
+            self.ax2.set_title('Trading Volume', fontweight='bold')
             self.ax2.set_ylabel('Volume')
             self.ax2.set_xlabel('Date')
+        elif self.show_macd.get():
+            macd_line, signal_line, histogram = self._calculate_macd(data['Close'])
+            self.ax2.plot(data.index, macd_line, label='MACD', color='blue')
+            self.ax2.plot(data.index, signal_line, label='Signal', color='red')
+            self.ax2.bar(data.index, histogram, label='Histogram', alpha=0.6, color='green')
+            self.ax2.set_title('MACD (Moving Average Convergence Divergence)', fontweight='bold')
+            self.ax2.set_ylabel('MACD')
+            self.ax2.set_xlabel('Date')
+            self.ax2.legend()
+        elif self.show_rsi.get():
+            rsi = self._calculate_rsi(data['Close'])
+            self.ax2.plot(data.index, rsi, label='RSI', color='purple')
+            self.ax2.axhline(y=70, color='r', linestyle='--', alpha=0.5, label='Overbought')
+            self.ax2.axhline(y=30, color='g', linestyle='--', alpha=0.5, label='Oversold')
+            self.ax2.set_title('RSI (Relative Strength Index)', fontweight='bold')
+            self.ax2.set_ylabel('RSI')
+            self.ax2.set_xlabel('Date')
+            self.ax2.legend()
         else:
-            # Plot RSI if selected
-            if self.show_rsi.get():
-                rsi = self._calculate_rsi(data['Close'])
-                self.ax2.plot(data.index, rsi, label='RSI', color='purple')
-                self.ax2.axhline(y=70, color='r', linestyle='--', alpha=0.5)
-                self.ax2.axhline(y=30, color='g', linestyle='--', alpha=0.5)
-                self.ax2.set_title('RSI (Relative Strength Index)')
-                self.ax2.set_ylabel('RSI')
-                self.ax2.set_xlabel('Date')
-                self.ax2.legend()
+            # Default to volume if nothing selected
+            self.ax2.bar(data.index, data['Volume'], alpha=0.7, color='orange')
+            self.ax2.set_title('Trading Volume', fontweight='bold')
+            self.ax2.set_ylabel('Volume')
+            self.ax2.set_xlabel('Date')
         
         self.ax2.grid(True, alpha=0.3)
         
@@ -239,6 +322,23 @@ class NEPSEAnalysisApp:
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
         return rsi
+        
+    def _calculate_macd(self, prices, fast=12, slow=26, signal=9):
+        """Calculate MACD (Moving Average Convergence Divergence)"""
+        exp1 = prices.ewm(span=fast).mean()
+        exp2 = prices.ewm(span=slow).mean()
+        macd_line = exp1 - exp2
+        signal_line = macd_line.ewm(span=signal).mean()
+        histogram = macd_line - signal_line
+        return macd_line, signal_line, histogram
+        
+    def _calculate_bollinger_bands(self, prices, window=20, num_std=2):
+        """Calculate Bollinger Bands"""
+        rolling_mean = prices.rolling(window=window).mean()
+        rolling_std = prices.rolling(window=window).std()
+        upper_band = rolling_mean + (rolling_std * num_std)
+        lower_band = rolling_mean - (rolling_std * num_std)
+        return upper_band, rolling_mean, lower_band
         
     def add_to_portfolio(self):
         symbol = self.symbol_entry.get().upper()
@@ -294,9 +394,9 @@ class NEPSEAnalysisApp:
             self.portfolio_tree.insert('', 'end', values=(
                 symbol,
                 f"{data['shares']:.2f}",
-                f"₹{data['buy_price']:.2f}",
-                f"₹{data['current_price']:.2f}",
-                f"₹{gain_loss:.2f} ({gain_loss_pct:.2f}%)"
+                f"NPR {data['buy_price']:.2f}",
+                f"NPR {data['current_price']:.2f}",
+                f"NPR {gain_loss:.2f} ({gain_loss_pct:.2f}%)"
             ))
             
     def show_portfolio(self):
@@ -309,9 +409,9 @@ class NEPSEAnalysisApp:
         total_gain_loss = current_value - total_investment
         
         summary = f"Portfolio Summary:\n\n"
-        summary += f"Total Investment: ₹{total_investment:.2f}\n"
-        summary += f"Current Value: ₹{current_value:.2f}\n"
-        summary += f"Total Gain/Loss: ₹{total_gain_loss:.2f}\n"
+        summary += f"Total Investment: NPR {total_investment:.2f}\n"
+        summary += f"Current Value: NPR {current_value:.2f}\n"
+        summary += f"Total Gain/Loss: NPR {total_gain_loss:.2f}\n"
         summary += f"Return: {((total_gain_loss / total_investment) * 100):.2f}%"
         
         messagebox.showinfo("Portfolio Summary", summary)
@@ -336,6 +436,81 @@ class NEPSEAnalysisApp:
             
             all_data.to_csv(filename)
             messagebox.showinfo("Success", f"Data exported to {filename}")
+            
+    def add_to_watchlist(self):
+        symbol = self.symbol_entry.get().upper()
+        
+        if symbol not in self.watchlist:
+            self.watchlist.append(symbol)
+            self.update_watchlist_display()
+            messagebox.showinfo("Success", f"{symbol} added to watchlist!")
+        else:
+            messagebox.showwarning("Warning", f"{symbol} is already in watchlist")
+            
+    def update_watchlist_display(self):
+        # Clear existing items
+        for item in self.watchlist_tree.get_children():
+            self.watchlist_tree.delete(item)
+        
+        # Add watchlist items
+        for symbol in self.watchlist:
+            if symbol in self.stock_data:
+                current_price = self.stock_data[symbol]['Close'][-1]
+                previous_price = self.stock_data[symbol]['Close'][-2] if len(self.stock_data[symbol]['Close']) > 1 else current_price
+                change = current_price - previous_price
+                change_pct = (change / previous_price) * 100 if previous_price != 0 else 0
+                
+                self.watchlist_tree.insert('', 'end', values=(
+                    symbol,
+                    f"NPR {current_price:.2f}",
+                    f"{change:+.2f} ({change_pct:+.2f}%)"
+                ))
+            else:
+                self.watchlist_tree.insert('', 'end', values=(
+                    symbol,
+                    "N/A",
+                    "N/A"
+                ))
+                
+    def save_data(self):
+        try:
+            # Save portfolio
+            with open(self.portfolio_file, 'wb') as f:
+                pickle.dump(self.portfolio, f)
+            
+            # Save watchlist
+            with open(self.watchlist_file, 'wb') as f:
+                pickle.dump(self.watchlist, f)
+            
+            # Save stock data (optional - can be large)
+            with open(self.data_file, 'wb') as f:
+                pickle.dump(self.stock_data, f)
+            
+            messagebox.showinfo("Success", "Data saved successfully!")
+            self.status_var.set("Data saved")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save data: {str(e)}")
+            
+    def load_data(self):
+        try:
+            # Load portfolio
+            if os.path.exists(self.portfolio_file):
+                with open(self.portfolio_file, 'rb') as f:
+                    self.portfolio = pickle.load(f)
+            
+            # Load watchlist
+            if os.path.exists(self.watchlist_file):
+                with open(self.watchlist_file, 'rb') as f:
+                    self.watchlist = pickle.load(f)
+            
+            # Load stock data
+            if os.path.exists(self.data_file):
+                with open(self.data_file, 'rb') as f:
+                    self.stock_data = pickle.load(f)
+                    
+        except Exception as e:
+            print(f"Error loading data: {e}")
+            # Start with empty data if loading fails
 
 def main():
     root = tk.Tk()
