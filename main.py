@@ -100,6 +100,13 @@ class NEPSEAnalysisApp:
             'last_backup': None
         }
         
+        # Initialize memory management
+        self.memory_manager = {
+            'max_cache_size_mb': 100,
+            'auto_cleanup_interval': 300,  # 5 minutes
+            'last_cleanup': datetime.now()
+        }
+        
     def _load_config(self) -> None:
         """Load configuration from JSON file"""
         try:
@@ -448,6 +455,9 @@ class NEPSEAnalysisApp:
             self.root.after(0, lambda: self.status_var.set(f"Data fetched for {symbol}"))
             self.root.after(0, lambda: self.update_watchlist_display())  # Update watchlist if symbol is in it
             self.root.after(0, self._hide_progress_bar)
+            
+            # Auto memory optimization after data fetch
+            self._auto_memory_optimization()
             
         except Exception as e:
             error_msg = f"Failed to fetch data for {symbol}: {str(e)}"
@@ -831,6 +841,57 @@ class NEPSEAnalysisApp:
             
         except Exception as e:
             self.logger.error(f"Failed to create enhanced backup: {e}")
+            
+    def _auto_memory_optimization(self) -> None:
+        """Automatic memory optimization and cleanup"""
+        try:
+            current_time = datetime.now()
+            
+            # Check if cleanup interval has passed
+            if (current_time - self.memory_manager['last_cleanup']).seconds < self.memory_manager['auto_cleanup_interval']:
+                return
+                
+            # Calculate current cache size (approximate)
+            cache_size_mb = sum(len(str(data)) for data in self.stock_data.values()) / (1024 * 1024)
+            
+            # If cache exceeds limit, clean up old data
+            if cache_size_mb > self.memory_manager['max_cache_size_mb']:
+                self._cleanup_old_data()
+                
+                # Force garbage collection
+                import gc
+                gc.collect()
+                
+                self.memory_manager['last_cleanup'] = current_time
+                self.logger.info(f"Auto memory optimization: cleaned up {cache_size_mb:.1f}MB cache")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to optimize memory: {e}")
+            
+    def _get_memory_usage(self) -> Dict[str, Any]:
+        """Get current memory usage statistics"""
+        try:
+            import psutil
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            
+            return {
+                'rss_mb': memory_info.rss / (1024 * 1024),
+                'vms_mb': memory_info.vms / (1024 * 1024),
+                'cache_symbols': len(self.stock_data),
+                'cache_data_points': sum(len(data) for data in self.stock_data.values()),
+                'cache_size_mb': sum(len(str(data)) for data in self.stock_data.values()) / (1024 * 1024)
+            }
+        except ImportError:
+            # Fallback if psutil not available
+            return {
+                'cache_symbols': len(self.stock_data),
+                'cache_data_points': sum(len(data) for data in self.stock_data.values()),
+                'cache_size_mb': sum(len(str(data)) for data in self.stock_data.values()) / (1024 * 1024)
+            }
+        except Exception as e:
+            self.logger.error(f"Failed to get memory usage: {e}")
+            return {}
         
     def _calculate_bollinger_bands(self, prices, window=20, num_std=2):
         """Calculate Bollinger Bands"""
@@ -1245,15 +1306,31 @@ class NEPSEAnalysisApp:
         search_entry.focus()
         
     def _clear_cache(self) -> None:
-        """Clear cached data and reset"""
+        """Clear cached data and reset with enhanced memory cleanup"""
         try:
-            result = messagebox.askyesno("Clear Cache", "This will remove all cached stock data. Continue?")
+            result = messagebox.askyesno("Clear Cache", "This will remove all cached stock data and free memory. Continue?")
             if result:
+                # Enhanced cache clearing with memory optimization
+                total_symbols = len(self.stock_data)
+                total_data_points = sum(len(data) for data in self.stock_data.values())
+                
+                # Clear stock data
                 self.stock_data.clear()
+                
+                # Force garbage collection
+                import gc
+                gc.collect()
+                
+                # Clear performance stats cache
+                if hasattr(self, 'performance_stats'):
+                    self.performance_stats['errors_count'] = 0
+                    
+                # Clean up old data
                 self._cleanup_old_data()
-                self.logger.info("Cache cleared by user")
-                messagebox.showinfo("Success", "Cache cleared successfully")
-                self.status_var.set("Cache cleared")
+                
+                self.logger.info(f"Cache cleared: {total_symbols} symbols, {total_data_points} data points removed")
+                messagebox.showinfo("Success", f"Cache cleared successfully!\nFreed memory from {total_symbols} symbols and {total_data_points} data points.")
+                self.status_var.set(f"Cache cleared - freed {total_symbols} symbols")
         except Exception as e:
             self.logger.error(f"Failed to clear cache: {e}")
             messagebox.showerror("Error", f"Failed to clear cache: {str(e)}")
