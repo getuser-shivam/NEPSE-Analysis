@@ -59,8 +59,22 @@ class NEPSEAnalysisApp:
         self.progress_var = tk.StringVar()
         self.progress_var.set("")
         
+        # Setup notification system
+        self._setup_notifications()
+        
+        # Setup chart interactivity
+        self._setup_chart_interactivity()
+        
         # Track application start time
         self.start_time = datetime.now()
+        
+        # Initialize notification system
+        self.notifications = []
+        self.price_alerts = {}
+        
+        # Initialize auto-refresh timer
+        self.auto_refresh_enabled = False
+        self.refresh_interval = 300  # 5 minutes default
         
     def _load_config(self) -> None:
         """Load configuration from JSON file"""
@@ -1273,6 +1287,9 @@ class NEPSEAnalysisApp:
         self.root.bind('<Control-w>', lambda e: self.add_to_watchlist())
         self.root.bind('<Control-r>', lambda e: self._refresh_current_data())
         self.root.bind('<F5>', lambda e: self._refresh_current_data())
+        self.root.bind('<Control-h>', lambda e: self._show_help())
+        self.root.bind('<Control-n>', lambda e: self._set_price_alert())
+        self.root.bind('<Control-t>', lambda e: self._toggle_auto_refresh())
         self.logger.info("Keyboard shortcuts configured")
         
     def _refresh_current_data(self) -> None:
@@ -1283,6 +1300,414 @@ class NEPSEAnalysisApp:
             self.fetch_stock_data()
         else:
             messagebox.showinfo("Refresh", "Please enter a valid symbol to refresh")
+            
+    def _setup_notifications(self) -> None:
+        """Setup notification system"""
+        # Create notification frame (initially hidden)
+        self.notification_frame = ttk.Frame(self.main_frame)
+        
+        self.notification_label = ttk.Label(self.notification_frame, text="", background="lightgreen", relief="solid", borderwidth=1)
+        self.notification_label.pack(pady=2)
+        
+        self.logger.info("Notification system initialized")
+        
+    def _setup_chart_interactivity(self) -> None:
+        """Setup chart interactivity features"""
+        try:
+            # Enable zoom and pan functionality
+            from matplotlib.widgets import RectangleSelector
+            
+            # Store original chart limits for reset
+            self.chart_limits = {}
+            
+            # Add mouse event handlers
+            self.canvas.mpl_connect('scroll_event', self._on_chart_scroll)
+            self.canvas.mpl_connect('button_press_event', self._on_chart_click)
+            
+            self.logger.info("Chart interactivity enabled")
+            
+        except ImportError:
+            self.logger.warning("Chart interactivity features not available")
+            
+    def _on_chart_scroll(self, event) -> None:
+        """Handle mouse scroll for chart zoom"""
+        try:
+            if event.inaxes == self.ax1:
+                # Zoom in/out on price chart
+                scale_factor = 1.1 if event.button == 'up' else 0.9
+                xlim = self.ax1.get_xlim()
+                ylim = self.ax1.get_ylim()
+                
+                # Calculate new limits
+                x_center = (xlim[0] + xlim[1]) / 2
+                y_center = (ylim[0] + ylim[1]) / 2
+                
+                new_xlim = [
+                    x_center - (x_center - xlim[0]) * scale_factor,
+                    x_center + (xlim[1] - x_center) * scale_factor
+                ]
+                new_ylim = [
+                    y_center - (y_center - ylim[0]) * scale_factor,
+                    y_center + (ylim[1] - y_center) * scale_factor
+                ]
+                
+                self.ax1.set_xlim(new_xlim)
+                self.ax1.set_ylim(new_ylim)
+                self.canvas.draw()
+                
+        except Exception as e:
+            self.logger.error(f"Chart zoom error: {e}")
+            
+    def _on_chart_click(self, event) -> None:
+        """Handle chart click events"""
+        try:
+            if event.inaxes == self.ax1 and event.button == 3:  # Right click
+                # Show context menu with chart options
+                        
+                        menu = tk.Menu(self.root, tearoff=0)
+                        menu.add_command(label="Reset Zoom", command=self._reset_chart_zoom)
+                        menu.add_command(label="Save Chart", command=self._save_chart)
+                        menu.add_separator()
+                        menu.add_command(label="Toggle Grid", command=self._toggle_grid)
+                        
+                        menu.post(event.x_root, event.y_root)
+                        
+        except Exception as e:
+            self.logger.error(f"Chart click error: {e}")
+            
+    def _reset_chart_zoom(self) -> None:
+        """Reset chart zoom to original view"""
+        try:
+            self.ax1.relim()
+            self.ax1.autoscale()
+            self.ax2.relim()
+            self.ax2.autoscale()
+            self.canvas.draw()
+            self.logger.info("Chart zoom reset")
+        except Exception as e:
+            self.logger.error(f"Failed to reset chart zoom: {e}")
+            
+    def _save_chart(self) -> None:
+        """Save current chart as image"""
+        try:
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".png",
+                filetypes=[("PNG files", "*.png"), ("All files", "*.*")],
+                initialfile=f"chart_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+            )
+            
+            if filename:
+                self.fig.savefig(filename, dpi=300, bbox_inches='tight')
+                messagebox.showinfo("Success", f"Chart saved to {filename}")
+                self.logger.info(f"Chart saved: {filename}")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to save chart: {e}")
+            messagebox.showerror("Error", f"Failed to save chart: {str(e)}")
+            
+    def _toggle_grid(self) -> None:
+        """Toggle chart grid visibility"""
+        try:
+            current_grid = self.ax1.xaxis.get_gridlines()[0].get_visible()
+            
+            # Toggle grid for both axes
+            self.ax1.grid(not current_grid)
+            self.ax2.grid(not current_grid)
+            
+            self.canvas.draw()
+            self.logger.info(f"Chart grid {'enabled' if not current_grid else 'disabled'}")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to toggle grid: {e}")
+            
+    def _show_help(self) -> None:
+        """Show help dialog with keyboard shortcuts and usage information"""
+        help_dialog = tk.Toplevel(self.root)
+        help_dialog.title("Help - NEPSE Analysis Tool")
+        help_dialog.geometry("600x500")
+        
+        # Center the dialog
+        help_dialog.transient(self.root)
+        help_dialog.grab_set()
+        
+        # Create notebook for organized help
+        notebook = ttk.Notebook(help_dialog)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Keyboard shortcuts tab
+        shortcuts_frame = ttk.Frame(notebook)
+        notebook.add(shortcuts_frame, text="Keyboard Shortcuts")
+        
+        shortcuts_text = """
+        Keyboard Shortcuts:
+        
+        • Ctrl+F  - Fetch Data
+        • Ctrl+S  - Save Data
+        • Ctrl+E  - Export Data
+        • Ctrl+P  - Show Portfolio Summary
+        • Ctrl+W  - Add to Watchlist
+        • Ctrl+R  - Refresh Current Data
+        • Ctrl+H  - Show Help (this dialog)
+        • Ctrl+N  - Set Price Alert
+        • Ctrl+T  - Toggle Auto-Refresh
+        • F5      - Refresh Current Data
+        • Mouse Wheel - Zoom in/out on charts
+        • Right Click on Chart - Context menu
+        """
+        
+        shortcuts_label = ttk.Label(shortcuts_frame, text=shortcuts_text, justify='left')
+        shortcuts_label.pack(padx=20, pady=20)
+        
+        # Usage tab
+        usage_frame = ttk.Frame(notebook)
+        notebook.add(usage_frame, text="Usage Guide")
+        
+        usage_text = """
+        Quick Start Guide:
+        
+        1. Enter a stock symbol (e.g., NEPSE, AAPL)
+        2. Select date range for analysis
+        3. Click "Fetch Data" to retrieve stock data
+        4. Toggle technical indicators using checkboxes
+        5. Add stocks to portfolio or watchlist
+        6. Export data in various formats
+        
+        Advanced Features:
+        
+        • Search: Type in search box to filter portfolio/watchlist
+        • Themes: Click "Theme" button to toggle dark/light mode
+        • Charts: Use mouse wheel to zoom, right-click for options
+        • Alerts: Set price alerts for watchlist stocks
+        • Auto-refresh: Enable automatic data updates
+        """
+        
+        usage_label = ttk.Label(usage_frame, text=usage_text, justify='left')
+        usage_label.pack(padx=20, pady=20)
+        
+        # About tab
+        about_frame = ttk.Frame(notebook)
+        notebook.add(about_frame, text="About")
+        
+        about_text = f"""
+        NEPSE Stock Analysis Tool
+        Version: 2.0.0
+        
+        Features:
+        • Real-time stock data fetching
+        • Advanced technical indicators
+        • Portfolio management
+        • Multiple export formats
+        • Interactive charts
+        • Price alerts
+        • Search and filtering
+        • Theme support
+        
+        Data Sources:
+        • NEPSE API (primary)
+        • Yahoo Finance (fallback)
+        • Simulated data (when APIs unavailable)
+        
+        Logs: nepse_analysis.log
+        Config: config.json
+        
+        Application Start: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}
+        """
+        
+        about_label = ttk.Label(about_frame, text=about_text, justify='left')
+        about_label.pack(padx=20, pady=20)
+        
+        # Close button
+        ttk.Button(help_dialog, text="Close", command=help_dialog.destroy).pack(pady=10)
+        
+    def _set_price_alert(self) -> None:
+        """Set price alert for current symbol"""
+        symbol = self.symbol_entry.get().strip().upper()
+        
+        if not self._validate_symbol(symbol):
+            messagebox.showerror("Invalid Symbol", f"'{symbol}' is not a valid stock symbol.")
+            return
+            
+        if symbol not in self.stock_data:
+            messagebox.showinfo("No Data", f"No data available for {symbol}. Please fetch data first.")
+            return
+            
+        # Create alert dialog
+        alert_dialog = tk.Toplevel(self.root)
+        alert_dialog.title(f"Price Alert - {symbol}")
+        alert_dialog.geometry("350x250")
+        
+        # Center the dialog
+        alert_dialog.transient(self.root)
+        alert_dialog.grab_set()
+        
+        current_price = self.stock_data[symbol]['Close'][-1]
+        
+        ttk.Label(alert_dialog, text=f"Set Price Alert for {symbol}", font=('Arial', 12, 'bold')).pack(pady=10)
+        ttk.Label(alert_dialog, text=f"Current Price: NPR {current_price:.2f}").pack(pady=5)
+        
+        # Alert type
+        alert_frame = ttk.LabelFrame(alert_dialog, text="Alert Type", padding="10")
+        alert_frame.pack(pady=10, padx=20, fill=tk.BOTH, expand=True)
+        
+        alert_type = tk.StringVar(value="above")
+        ttk.Radiobutton(alert_frame, text="Price goes above", variable=alert_type, value="above").pack(anchor='w')
+        ttk.Radiobutton(alert_frame, text="Price goes below", variable=alert_type, value="below").pack(anchor='w')
+        
+        # Target price
+        ttk.Label(alert_frame, text="Target Price:").pack(anchor='w', pady=(10, 0))
+        price_entry = ttk.Entry(alert_frame)
+        price_entry.pack(fill=tk.X, pady=5)
+        price_entry.insert(0, f"{current_price:.2f}")
+        
+        def set_alert():
+            try:
+                target_price = float(price_entry.get())
+                if target_price <= 0:
+                    messagebox.showerror("Invalid Price", "Target price must be positive")
+                    return
+                    
+                # Store alert
+                self.price_alerts[symbol] = {
+                    'type': alert_type.get(),
+                    'target': target_price,
+                    'created': datetime.now()
+                }
+                
+                self.logger.info(f"Price alert set for {symbol}: {alert_type.get()} NPR {target_price}")
+                
+                alert_dialog.destroy()
+                messagebox.showinfo("Alert Set", f"Price alert set for {symbol}!")
+                
+                # Check if alert should trigger immediately
+                self._check_price_alerts()
+                
+            except ValueError:
+                messagebox.showerror("Invalid Price", "Please enter a valid number")
+                
+        # Buttons
+        button_frame = ttk.Frame(alert_dialog)
+        button_frame.pack(pady=20)
+        
+        ttk.Button(button_frame, text="Set Alert", command=set_alert).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=alert_dialog.destroy).pack(side=tk.LEFT, padx=5)
+        
+        price_entry.focus()
+        
+    def _check_price_alerts(self) -> None:
+        """Check if any price alerts should trigger"""
+        triggered_alerts = []
+        
+        for symbol, alert in self.price_alerts.items():
+            if symbol in self.stock_data:
+                current_price = self.stock_data[symbol]['Close'][-1]
+                
+                triggered = False
+                if alert['type'] == 'above' and current_price >= alert['target']:
+                    triggered = True
+                elif alert['type'] == 'below' and current_price <= alert['target']:
+                    triggered = True
+                    
+                if triggered:
+                    message = f"Price Alert: {symbol} is NPR {current_price:.2f} ({alert['type']} NPR {alert['target']:.2f})"
+                    self._show_notification(message, "warning")
+                    triggered_alerts.append(symbol)
+                    
+        # Remove triggered alerts
+        for symbol in triggered_alerts:
+            del self.price_alerts[symbol]
+            self.logger.info(f"Price alert triggered and removed for {symbol}")
+            
+    def _show_notification(self, message: str, level: str = "info") -> None:
+        """Show notification message"""
+        try:
+            # Set notification color based on level
+            colors = {
+                'info': 'lightblue',
+                'success': 'lightgreen',
+                'warning': 'lightyellow',
+                'error': 'lightcoral'
+            }
+            
+            self.notification_label.config(text=message, background=colors.get(level, 'lightblue'))
+            
+            # Show notification frame at top of main frame
+            self.notification_frame.grid(row=0, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 5))
+            
+            # Auto-hide after 5 seconds
+            self.root.after(5000, self._hide_notification)
+            
+            # Log notification
+            self.logger.info(f"Notification: {message}")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to show notification: {e}")
+            
+    def _hide_notification(self) -> None:
+        """Hide notification message"""
+        try:
+            self.notification_frame.grid_forget()
+        except Exception:
+            pass  # Ignore if already hidden
+            
+    def _toggle_auto_refresh(self) -> None:
+        """Toggle automatic data refresh"""
+        try:
+            self.auto_refresh_enabled = not self.auto_refresh_enabled
+            
+            if self.auto_refresh_enabled:
+                self._start_auto_refresh()
+                self._show_notification("Auto-refresh enabled", "success")
+                self.logger.info("Auto-refresh enabled")
+            else:
+                self._stop_auto_refresh()
+                self._show_notification("Auto-refresh disabled", "info")
+                self.logger.info("Auto-refresh disabled")
+                
+        except Exception as e:
+            self.logger.error(f"Failed to toggle auto-refresh: {e}")
+            messagebox.showerror("Error", f"Failed to toggle auto-refresh: {str(e)}")
+            
+    def _start_auto_refresh(self) -> None:
+        """Start automatic data refresh"""
+        if hasattr(self, '_auto_refresh_timer'):
+            self.root.after_cancel(self._auto_refresh_timer)
+            
+        self._auto_refresh_timer = self.root.after(self.refresh_interval * 1000, self._auto_refresh_tick)
+        
+    def _stop_auto_refresh(self) -> None:
+        """Stop automatic data refresh"""
+        if hasattr(self, '_auto_refresh_timer'):
+            self.root.after_cancel(self._auto_refresh_timer)
+            
+    def _auto_refresh_tick(self) -> None:
+        """Auto-refresh tick handler"""
+        try:
+            if self.auto_refresh_enabled:
+                # Refresh watchlist data
+                if self.watchlist:
+                    self.logger.info("Auto-refreshing watchlist data")
+                    
+                    # Refresh each symbol in watchlist
+                    for symbol in self.watchlist[:5]:  # Limit to 5 symbols per refresh
+                        if symbol in self.stock_data:
+                            # Get last 7 days of data
+                            end_date = datetime.now().strftime("%Y-%m-%d")
+                            start_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+                            
+                            thread = threading.Thread(target=self._fetch_data_thread, args=(symbol, start_date, end_date))
+                            thread.daemon = True
+                            thread.start()
+                    
+                # Check price alerts
+                self._check_price_alerts()
+                
+                # Schedule next refresh
+                self._auto_refresh_timer = self.root.after(self.refresh_interval * 1000, self._auto_refresh_tick)
+                
+        except Exception as e:
+            self.logger.error(f"Auto-refresh error: {e}")
+            # Don't stop auto-refresh on error, just continue
+            self._auto_refresh_timer = self.root.after(self.refresh_interval * 1000, self._auto_refresh_tick)
             
     def _hide_progress_bar(self) -> None:
         """Hide the progress bar"""
