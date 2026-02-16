@@ -1,9 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import pandas as pd
+import numpy as np
 import yfinance as yf
 import requests
 from bs4 import BeautifulSoup
@@ -18,6 +18,9 @@ import logging
 import shutil
 from typing import Dict, List, Optional, Tuple, Any
 import re
+import csv
+import math
+from collections import defaultdict
 
 class NEPSEAnalysisApp:
     def __init__(self, root):
@@ -75,6 +78,10 @@ class NEPSEAnalysisApp:
         # Initialize auto-refresh timer
         self.auto_refresh_enabled = False
         self.refresh_interval = 300  # 5 minutes default
+        
+        # Initialize portfolio analytics
+        self.portfolio_analytics = {}
+        self.risk_metrics = {}
         
     def _load_config(self) -> None:
         """Load configuration from JSON file"""
@@ -216,7 +223,7 @@ class NEPSEAnalysisApp:
         
         # Watchlist frame
         self.watchlist_frame = ttk.LabelFrame(self.control_frame, text="Watchlist", padding="5")
-        self.watchlist_frame.grid(row=19, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        self.watchlist_frame.grid(row=20, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
         
     def create_widgets(self):
         # Stock Symbol Input with tooltip
@@ -258,30 +265,31 @@ class NEPSEAnalysisApp:
         ttk.Button(self.control_frame, text="Add to Portfolio", command=self.add_to_portfolio).grid(row=4, column=0, columnspan=2, pady=5)
         ttk.Button(self.control_frame, text="Add to Watchlist", command=self.add_to_watchlist).grid(row=5, column=0, columnspan=2, pady=5)
         ttk.Button(self.control_frame, text="Show Portfolio", command=self.show_portfolio).grid(row=6, column=0, columnspan=2, pady=5)
-        ttk.Button(self.control_frame, text="Export Data", command=self.export_data).grid(row=7, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Portfolio Analytics", command=self._show_portfolio_analytics).grid(row=7, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Export Data", command=self.export_data).grid(row=8, column=0, columnspan=2, pady=5)
         # Additional buttons for advanced features
-        ttk.Button(self.control_frame, text="Search Portfolio", command=self._search_portfolio).grid(row=9, column=0, columnspan=2, pady=5)
-        ttk.Button(self.control_frame, text="Clear Cache", command=self._clear_cache).grid(row=10, column=0, columnspan=2, pady=5)
-        ttk.Button(self.control_frame, text="Theme", command=self._toggle_theme).grid(row=11, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Search Portfolio", command=self._search_portfolio).grid(row=10, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Clear Cache", command=self._clear_cache).grid(row=11, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Theme", command=self._toggle_theme).grid(row=12, column=0, columnspan=2, pady=5)
         
         # Analysis Options
-        ttk.Separator(self.control_frame, orient='horizontal').grid(row=12, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
-        ttk.Label(self.control_frame, text="Analysis Options:", font=('Arial', 10, 'bold')).grid(row=13, column=0, columnspan=2, pady=5)
+        ttk.Separator(self.control_frame, orient='horizontal').grid(row=13, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        ttk.Label(self.control_frame, text="Analysis Options:", font=('Arial', 10, 'bold')).grid(row=14, column=0, columnspan=2, pady=5)
         
         self.show_ma = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.control_frame, text="Moving Average", variable=self.show_ma).grid(row=14, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Moving Average", variable=self.show_ma).grid(row=15, column=0, columnspan=2, sticky=tk.W)
         
         self.show_volume = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.control_frame, text="Volume", variable=self.show_volume).grid(row=15, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Volume", variable=self.show_volume).grid(row=16, column=0, columnspan=2, sticky=tk.W)
         
         self.show_rsi = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="RSI", variable=self.show_rsi).grid(row=16, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="RSI", variable=self.show_rsi).grid(row=17, column=0, columnspan=2, sticky=tk.W)
         
         self.show_macd = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="MACD", variable=self.show_macd).grid(row=17, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="MACD", variable=self.show_macd).grid(row=18, column=0, columnspan=2, sticky=tk.W)
         
         self.show_bollinger = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="Bollinger Bands", variable=self.show_bollinger).grid(row=18, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Bollinger Bands", variable=self.show_bollinger).grid(row=19, column=0, columnspan=2, sticky=tk.W)
         
         # Create matplotlib figure for charts
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(10, 8))
@@ -1809,6 +1817,215 @@ class NEPSEAnalysisApp:
             except Exception as e:
                 self.logger.error(f"Failed to export portfolio report: {e}")
                 messagebox.showerror("Export Error", f"Failed to export report: {str(e)}")
+                
+    def _calculate_portfolio_analytics(self) -> Dict[str, Any]:
+        """Calculate advanced portfolio analytics"""
+        if not self.portfolio:
+            return {}
+            
+        try:
+            total_investment = 0
+            total_value = 0
+            total_gain_loss = 0
+            weights = []
+            returns = []
+            
+            for symbol, data in self.portfolio.items():
+                investment = data['shares'] * data['buy_price']
+                current_value = data['shares'] * data['current_price']
+                gain_loss = current_value - investment
+                
+                total_investment += investment
+                total_value += current_value
+                total_gain_loss += gain_loss
+                
+                # Calculate individual return
+                if investment > 0:
+                    returns.append((current_value - investment) / investment)
+                    weights.append(investment)
+                    
+            # Portfolio metrics
+            total_return = (total_value - total_investment) / total_investment if total_investment > 0 else 0
+            
+            # Risk metrics (simplified)
+            if len(returns) > 1:
+                avg_return = np.mean(returns)
+                std_return = np.std(returns)
+                sharpe_ratio = avg_return / std_return if std_return != 0 else 0
+                
+                # Portfolio beta (simplified calculation)
+                portfolio_beta = self._calculate_portfolio_beta()
+            else:
+                sharpe_ratio = 0
+                portfolio_beta = 0
+                
+            # Diversification metrics
+            sector_concentration = self._calculate_sector_concentration()
+            
+            analytics = {
+                'total_investment': total_investment,
+                'total_value': total_value,
+                'total_gain_loss': total_gain_loss,
+                'total_return_pct': total_return * 100,
+                'sharpe_ratio': sharpe_ratio,
+                'portfolio_beta': portfolio_beta,
+                'sector_concentration': sector_concentration,
+                'num_stocks': len(self.portfolio),
+                'calculated_at': datetime.now()
+            }
+            
+            self.portfolio_analytics = analytics
+            self.logger.info(f"Portfolio analytics calculated: Total Return {total_return*100:.2f}%")
+            
+            return analytics
+            
+        except Exception as e:
+            self.logger.error(f"Failed to calculate portfolio analytics: {e}")
+            return {}
+            
+    def _calculate_portfolio_beta(self) -> float:
+        """Calculate simplified portfolio beta"""
+        try:
+            # Simplified beta calculation based on portfolio volatility
+            if not self.portfolio or len(self.portfolio) < 2:
+                return 1.0  # Market beta
+                
+            returns = []
+            for symbol, data in self.portfolio.items():
+                if data['buy_price'] > 0:
+                    returns.append((data['current_price'] - data['buy_price']) / data['buy_price'])
+                    
+            if len(returns) < 2:
+                return 1.0
+                
+            # Calculate portfolio volatility (simplified)
+            portfolio_volatility = np.std(returns) if returns else 0
+            
+            # Assume market volatility of 15% (simplified)
+            market_volatility = 0.15
+            
+            # Beta = portfolio_volatility / market_volatility
+            beta = portfolio_volatility / market_volatility if market_volatility != 0 else 1.0
+            
+            return max(0.1, min(3.0, beta))  # Reasonable bounds
+            
+        except Exception as e:
+            self.logger.error(f"Failed to calculate portfolio beta: {e}")
+            return 1.0
+            
+    def _calculate_sector_concentration(self) -> Dict[str, float]:
+        """Calculate sector concentration (simplified)"""
+        try:
+            # Simplified sector mapping based on symbol patterns
+            sectors = defaultdict(float)
+            total_investment = 0
+            
+            for symbol, data in self.portfolio.items():
+                investment = data['shares'] * data['buy_price']
+                total_investment += investment
+                
+                # Simple sector classification based on symbol
+                sector = self._classify_sector(symbol)
+                sectors[sector] += investment
+                
+            # Calculate percentages
+            if total_investment > 0:
+                for sector in sectors:
+                    sectors[sector] = (sectors[sector] / total_investment) * 100
+                    
+            return dict(sectors)
+            
+        except Exception as e:
+            self.logger.error(f"Failed to calculate sector concentration: {e}")
+            return {}
+            
+    def _classify_sector(self, symbol: str) -> str:
+        """Simple sector classification based on symbol patterns"""
+        symbol = symbol.upper()
+        
+        # Simple heuristic classification
+        if any(x in symbol for x in ['TECH', 'SOFT', 'COMP']):
+            return 'Technology'
+        elif any(x in symbol for x in ['BANK', 'FIN', 'INSUR']):
+            return 'Financial Services'
+        elif any(x in symbol for x in ['OIL', 'GAS', 'ENERGY']):
+            return 'Energy'
+        elif any(x in symbol for x in ['PHARMA', 'MED', 'HEALTH']):
+            return 'Healthcare'
+        elif any(x in symbol for x in ['RETAIL', 'SHOP', 'MALL']):
+            return 'Consumer Discretionary'
+        elif any(x in symbol for x in ['FOOD', 'BEV', 'CONSUMER']):
+            return 'Consumer Staples'
+        elif any(x in symbol for x in ['INDUSTRY', 'MANUF', 'STEEL']):
+            return 'Industrial'
+        elif any(x in symbol for x in ['UTIL', 'POWER', 'WATER']):
+            return 'Utilities'
+        elif any(x in symbol for x in ['NEPSE', 'HOTEL', 'TOURISM']):
+            return 'Tourism/Hospitality'
+        else:
+            return 'Other'
+            
+    def _show_portfolio_analytics(self) -> None:
+        """Display detailed portfolio analytics"""
+        try:
+            analytics = self._calculate_portfolio_analytics()
+            
+            if not analytics:
+                messagebox.showinfo("No Data", "No portfolio data available for analytics")
+                return
+                
+            # Create analytics dialog
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Portfolio Analytics")
+            dialog.geometry("600x500")
+            
+            # Center dialog
+            dialog.transient(self.root)
+            dialog.grab_set()
+            
+            # Create notebook for organized analytics
+            notebook = ttk.Notebook(dialog)
+            notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            # Summary tab
+            summary_frame = ttk.Frame(notebook)
+            notebook.add(summary_frame, text="Summary")
+            
+            summary_text = f"""
+            Portfolio Summary:
+            
+            Total Investment: NPR {analytics.get('total_investment', 0):,.2f}
+            Current Value: NPR {analytics.get('total_value', 0):,.2f}
+            Total Gain/Loss: NPR {analytics.get('total_gain_loss', 0):,.2f}
+            Total Return: {analytics.get('total_return_pct', 0):,.2f}%
+            Number of Stocks: {analytics.get('num_stocks', 0)}
+            
+            Risk Metrics:
+            Sharpe Ratio: {analytics.get('sharpe_ratio', 0):,.3f}
+            Portfolio Beta: {analytics.get('portfolio_beta', 0):,.3f}
+            """
+            
+            ttk.Label(summary_frame, text=summary_text, justify='left').pack(padx=20, pady=20)
+            
+            # Sector allocation tab
+            sector_frame = ttk.Frame(notebook)
+            notebook.add(sector_frame, text="Sector Allocation")
+            
+            sector_data = analytics.get('sector_concentration', {})
+            if sector_data:
+                ttk.Label(sector_frame, text="Sector Allocation:", font=('Arial', 10, 'bold')).pack(pady=10)
+                
+                for sector, percentage in sector_data.items():
+                    ttk.Label(sector_frame, text=f"{sector}: {percentage:.1f}%").pack(anchor='w', padx=20)
+                    
+            # Close button
+            ttk.Button(dialog, text="Close", command=dialog.destroy).pack(pady=10)
+            
+            self.logger.info("Portfolio analytics displayed")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to show portfolio analytics: {e}")
+            messagebox.showerror("Error", f"Failed to show analytics: {str(e)}")
 
 def main():
     root = tk.Tk()
