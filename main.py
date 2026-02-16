@@ -24,8 +24,8 @@ from collections import defaultdict
 import argparse
 import sys
 import asyncio
-import aiohttp
-import time
+import data_manager
+import technical_indicators
 
 class NEPSEAnalysisApp:
     def __init__(self, root):
@@ -143,7 +143,7 @@ class NEPSEAnalysisApp:
                     'log_level': 'INFO'
                 }
                 self.logger.info("Using default configuration")
-        except Exception as e:
+        except (FileNotFoundError, json.JSONDecodeError, PermissionError) as e:
             self.logger.error(f"Failed to load configuration: {e}")
             # Fallback to default config
             self.config = {
@@ -200,7 +200,7 @@ class NEPSEAnalysisApp:
         try:
             self.save_data()
             self.logger.info("Auto-save completed")
-        except Exception as e:
+        except (IOError, OSError, pickle.PickleError) as e:
             self.logger.error(f"Auto-save failed: {e}")
         finally:
             # Schedule next auto-save
@@ -1144,13 +1144,14 @@ class NEPSEAnalysisApp:
         ttk.Label(dialog, text="Export Options", font=('Arial', 12, 'bold')).pack(pady=10)
         
         # Format selection
-        format_frame = ttk.LabelFrame(dialog, text="Format", padding="10")
-        format_frame.pack(pady=10, padx=20, fill=tk.BOTH, expand=True)
+        format_frame = ttk.LabelFrame(dialog, text="Export Format", padding="10")
+        format_frame.pack(fill=tk.X, padx=10, pady=5)
         
-        format_var = tk.StringVar(value="csv")
-        ttk.Radiobutton(format_frame, text="CSV (Comma Separated Values)", variable=format_var, value="csv").pack(anchor='w')
-        ttk.Radiobutton(format_frame, text="Excel (XLSX)", variable=format_var, value="xlsx").pack(anchor='w')
-        ttk.Radiobutton(format_frame, text="JSON", variable=format_var, value="json").pack(anchor='w')
+        format_var = tk.StringVar(value="CSV")
+        ttk.Radiobutton(format_frame, text="CSV", variable=format_var, value="CSV").pack(anchor='w')
+        ttk.Radiobutton(format_frame, text="Excel", variable=format_var, value="Excel").pack(anchor='w')
+        ttk.Radiobutton(format_frame, text="JSON", variable=format_var, value="JSON").pack(anchor='w')
+        ttk.Radiobutton(format_frame, text="PDF Report", variable=format_var, value="PDF").pack(anchor='w')
         
         # Data selection
         data_frame = ttk.LabelFrame(dialog, text="Data to Export", padding="10")
@@ -1163,44 +1164,10 @@ class NEPSEAnalysisApp:
         ttk.Checkbutton(data_frame, text="Portfolio Data", variable=export_portfolio).pack(anchor='w')
         ttk.Checkbutton(data_frame, text="Watchlist", variable=export_watchlist).pack(anchor='w')
         ttk.Checkbutton(data_frame, text="Stock Price Data", variable=export_stock_data).pack(anchor='w')
-        
-        def do_export():
-            try:
-                selected_format = format_var.get()
                 
-                # Set file extension based on format
-                extensions = {
-                    'csv': '.csv',
-                    'xlsx': '.xlsx',
-                    'json': '.json'
-                }
-                
-                filename = filedialog.asksaveasfilename(
-                    defaultextension=extensions[selected_format],
-                    filetypes=[
-                        (f"{selected_format.upper()} files", f"*{extensions[selected_format]}"),
-                        ("All files", "*.*")
-                    ],
-                    initialfile=f"nepse_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}{extensions[selected_format]}"
-                )
-                
-                if filename:
-                    self._show_progress_bar("Exporting data...")
-                    
-                    if selected_format == 'csv':
-                        self._export_csv(filename, export_portfolio.get(), export_watchlist.get(), export_stock_data.get())
-                    elif selected_format == 'xlsx':
-                        self._export_excel(filename, export_portfolio.get(), export_watchlist.get(), export_stock_data.get())
-                    elif selected_format == 'json':
-                        self._export_json(filename, export_portfolio.get(), export_watchlist.get(), export_stock_data.get())
-                    
-                    dialog.destroy()
-                    messagebox.showinfo("Success", f"Data exported to {filename}")
-                    
-            except Exception as e:
-                self.logger.error(f"Export failed: {e}")
-                messagebox.showerror("Export Error", f"Failed to export data: {str(e)}")
-            finally:
+            if buy_price <= 0:
+                messagebox.showerror("Invalid Input", "Buy price must be positive")
+                return
                 self._hide_progress_bar()
         
         # Buttons
@@ -1280,6 +1247,164 @@ class NEPSEAnalysisApp:
             # Fallback to CSV if openpyxl not available
             self.logger.warning("openpyxl not available, falling back to CSV")
             self._export_csv(filename.replace('.xlsx', '.csv'), export_portfolio, export_watchlist, export_stock_data)
+            
+    def _export_pdf_report(self, filename: str, export_portfolio: bool, export_watchlist: bool, export_stock_data: bool) -> None:
+        """Export data to PDF format with charts"""
+        try:
+            from reportlab.lib.pagesizes import letter, A4
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            import matplotlib.pyplot as plt
+            import io
+            
+            doc = SimpleDocTemplate(filename, pagesize=A4)
+            styles = getSampleStyleSheet()
+            story = []
+            
+            # Title
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=24,
+                spaceAfter=30,
+                alignment=1  # Center
+            )
+            story.append(Paragraph("NEPSE Analysis Report", title_style))
+            story.append(Spacer(1, 20))
+            
+            # Export date
+            story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+            story.append(Spacer(1, 20))
+            
+            # Portfolio section
+            if export_portfolio and self.portfolio:
+                story.append(Paragraph("Portfolio Summary", styles['Heading2']))
+                story.append(Spacer(1, 12))
+                
+                portfolio_data = [['Symbol', 'Shares', 'Buy Price', 'Current Price', 'Gain/Loss', 'Return %']]
+                total_investment = 0
+                total_value = 0
+                
+                for symbol, data in self.portfolio.items():
+                    investment = data['shares'] * data['buy_price']
+                    current_value = data['shares'] * data['current_price']
+                    gain_loss = current_value - investment
+                    return_pct = (gain_loss / investment * 100) if investment > 0 else 0
+                    
+                    portfolio_data.append([
+                        symbol,
+                        str(data['shares']),
+                        f"{data['buy_price']:.2f}",
+                        f"{data['current_price']:.2f}",
+                        f"{gain_loss:.2f}",
+                        f"{return_pct:.2f}%"
+                    ])
+                    
+                    total_investment += investment
+                    total_value += current_value
+                
+                # Create table
+                table = Table(portfolio_data)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), '#4CAF50'),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), '#FFFFFF'),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 12),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), '#F0F0F0'),
+                    ('GRID', (0, 0), (-1, -1), 1, '#000000')
+                ]))
+                
+                story.append(table)
+                story.append(Spacer(1, 20))
+                
+                # Portfolio summary
+                total_gain_loss = total_value - total_investment
+                total_return = (total_gain_loss / total_investment * 100) if total_investment > 0 else 0
+                
+                summary_data = [
+                    ['Total Investment', f"{total_investment:.2f}"],
+                    ['Current Value', f"{total_value:.2f}"],
+                    ['Total Gain/Loss', f"{total_gain_loss:.2f}"],
+                    ['Total Return %', f"{total_return:.2f}%"]
+                ]
+                
+                summary_table = Table(summary_data)
+                summary_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (0, -1), '#2196F3'),
+                    ('TEXTCOLOR', (0, 0), (0, -1), '#FFFFFF'),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('GRID', (0, 0), (-1, -1), 1, '#000000')
+                ]))
+                
+                story.append(summary_table)
+                story.append(Spacer(1, 20))
+            
+            # Watchlist section
+            if export_watchlist and self.watchlist:
+                story.append(Paragraph("Watchlist", styles['Heading2']))
+                story.append(Spacer(1, 12))
+                
+                watchlist_data = [['Symbol', 'Added Date']]
+                for symbol in self.watchlist:
+                    watchlist_data.append([symbol, 'N/A'])
+                
+                watchlist_table = Table(watchlist_data)
+                watchlist_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), '#FF9800'),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), '#FFFFFF'),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 12),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), '#F0F0F0'),
+                    ('GRID', (0, 0), (-1, -1), 1, '#000000')
+                ]))
+                
+                story.append(watchlist_table)
+                story.append(Spacer(1, 20))
+            
+            # Add charts if stock data available
+            if export_stock_data and self.stock_data:
+                story.append(Paragraph("Stock Charts", styles['Heading2']))
+                story.append(Spacer(1, 12))
+                
+                for symbol, data in list(self.stock_data.items())[:3]:  # Limit to first 3 stocks
+                    # Create chart
+                    fig, ax = plt.subplots(figsize=(8, 4))
+                    ax.plot(data.index, data['Close'], label=f'{symbol} Close Price')
+                    ax.set_title(f'{symbol} Stock Price')
+                    ax.set_xlabel('Date')
+                    ax.set_ylabel('Price')
+                    ax.legend()
+                    ax.grid(True)
+                    
+                    # Save chart to buffer
+                    img_buffer = io.BytesIO()
+                    plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+                    img_buffer.seek(0)
+                    plt.close()
+                    
+                    # Add chart to PDF
+                    story.append(Paragraph(f"{symbol} Price Chart", styles['Heading3']))
+                    story.append(Spacer(1, 6))
+                    story.append(Image(img_buffer, width=6*inch, height=3*inch))
+                    story.append(Spacer(1, 20))
+            
+            # Build PDF
+            doc.build(story)
+            self.logger.info(f"PDF report exported to {filename}")
+            
+        except ImportError:
+            self.logger.warning("reportlab not available, PDF export not supported")
+            messagebox.showerror("Export Error", "PDF export requires reportlab library. Install with: pip install reportlab")
+        except Exception as e:
+            self.logger.error(f"Failed to export PDF: {e}")
+            raise
             
     def _export_json(self, filename: str, export_portfolio: bool, export_watchlist: bool, export_stock_data: bool) -> None:
         """Export data to JSON format"""
