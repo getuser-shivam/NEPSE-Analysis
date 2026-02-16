@@ -202,7 +202,7 @@ class NEPSEAnalysisApp:
         
         # Watchlist frame
         self.watchlist_frame = ttk.LabelFrame(self.control_frame, text="Watchlist", padding="5")
-        self.watchlist_frame.grid(row=16, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        self.watchlist_frame.grid(row=19, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
         
     def create_widgets(self):
         # Stock Symbol Input with tooltip
@@ -216,6 +216,17 @@ class NEPSEAnalysisApp:
         
         # Add tooltip for symbol entry
         self._create_tooltip(self.symbol_entry, "Enter stock symbol (e.g., NEPSE, AAPL, GOOG)")
+        
+        # Search functionality
+        search_frame = ttk.Frame(self.control_frame)
+        search_frame.grid(row=0, column=0, columnspan=2, pady=5, sticky=(tk.W, tk.E))
+        
+        ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=(0, 5))
+        self.search_entry = ttk.Entry(search_frame, width=15)
+        self.search_entry.pack(side=tk.LEFT, padx=5)
+        self.search_entry.bind('<KeyRelease>', self._on_search)
+        
+        self._create_tooltip(self.search_entry, "Search portfolio and watchlist")
         
         # Date Range
         ttk.Label(self.control_frame, text="Start Date:").grid(row=1, column=0, sticky=tk.W, pady=5)
@@ -234,26 +245,29 @@ class NEPSEAnalysisApp:
         ttk.Button(self.control_frame, text="Add to Watchlist", command=self.add_to_watchlist).grid(row=5, column=0, columnspan=2, pady=5)
         ttk.Button(self.control_frame, text="Show Portfolio", command=self.show_portfolio).grid(row=6, column=0, columnspan=2, pady=5)
         ttk.Button(self.control_frame, text="Export Data", command=self.export_data).grid(row=7, column=0, columnspan=2, pady=5)
-        ttk.Button(self.control_frame, text="Save Data", command=self.save_data).grid(row=8, column=0, columnspan=2, pady=5)
+        # Additional buttons for advanced features
+        ttk.Button(self.control_frame, text="Search Portfolio", command=self._search_portfolio).grid(row=9, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Clear Cache", command=self._clear_cache).grid(row=10, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Theme", command=self._toggle_theme).grid(row=11, column=0, columnspan=2, pady=5)
         
         # Analysis Options
-        ttk.Separator(self.control_frame, orient='horizontal').grid(row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
-        ttk.Label(self.control_frame, text="Analysis Options:", font=('Arial', 10, 'bold')).grid(row=10, column=0, columnspan=2, pady=5)
+        ttk.Separator(self.control_frame, orient='horizontal').grid(row=12, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        ttk.Label(self.control_frame, text="Analysis Options:", font=('Arial', 10, 'bold')).grid(row=13, column=0, columnspan=2, pady=5)
         
         self.show_ma = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.control_frame, text="Moving Average", variable=self.show_ma).grid(row=11, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Moving Average", variable=self.show_ma).grid(row=14, column=0, columnspan=2, sticky=tk.W)
         
         self.show_volume = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.control_frame, text="Volume", variable=self.show_volume).grid(row=12, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Volume", variable=self.show_volume).grid(row=15, column=0, columnspan=2, sticky=tk.W)
         
         self.show_rsi = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="RSI", variable=self.show_rsi).grid(row=13, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="RSI", variable=self.show_rsi).grid(row=16, column=0, columnspan=2, sticky=tk.W)
         
         self.show_macd = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="MACD", variable=self.show_macd).grid(row=14, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="MACD", variable=self.show_macd).grid(row=17, column=0, columnspan=2, sticky=tk.W)
         
         self.show_bollinger = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="Bollinger Bands", variable=self.show_bollinger).grid(row=15, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Bollinger Bands", variable=self.show_bollinger).grid(row=18, column=0, columnspan=2, sticky=tk.W)
         
         # Create matplotlib figure for charts
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(10, 8))
@@ -928,6 +942,142 @@ class NEPSEAnalysisApp:
             
         with open(filename, 'w') as f:
             json.dump(export_data, f, indent=2, default=str)
+            
+    def _on_search(self, event) -> None:
+        """Handle search input changes"""
+        search_term = self.search_entry.get().strip().upper()
+        
+        if not search_term:
+            # Reset views if search is empty
+            self.update_portfolio_display()
+            self.update_watchlist_display()
+            return
+            
+        # Filter portfolio
+        self._filter_portfolio(search_term)
+        
+        # Filter watchlist
+        self._filter_watchlist(search_term)
+        
+    def _filter_portfolio(self, search_term: str) -> None:
+        """Filter portfolio based on search term"""
+        # Clear existing items
+        for item in self.portfolio_tree.get_children():
+            self.portfolio_tree.delete(item)
+        
+        # Add filtered portfolio items
+        for symbol, data in self.portfolio.items():
+            if search_term in symbol.upper():
+                gain_loss = (data['current_price'] - data['buy_price']) * data['shares']
+                gain_loss_pct = ((data['current_price'] - data['buy_price']) / data['buy_price']) * 100
+                
+                self.portfolio_tree.insert('', 'end', values=(
+                    symbol,
+                    f"{data['shares']:.2f}",
+                    f"NPR {data['buy_price']:.2f}",
+                    f"NPR {data['current_price']:.2f}",
+                    f"NPR {gain_loss:.2f} ({gain_loss_pct:.2f}%)"
+                ))
+                
+    def _filter_watchlist(self, search_term: str) -> None:
+        """Filter watchlist based on search term"""
+        # Clear existing items
+        for item in self.watchlist_tree.get_children():
+            self.watchlist_tree.delete(item)
+        
+        # Add filtered watchlist items
+        for symbol in self.watchlist:
+            if search_term in symbol.upper():
+                if symbol in self.stock_data:
+                    current_price = self.stock_data[symbol]['Close'][-1]
+                    previous_price = self.stock_data[symbol]['Close'][-2] if len(self.stock_data[symbol]['Close']) > 1 else current_price
+                    change = current_price - previous_price
+                    change_pct = (change / previous_price) * 100 if previous_price != 0 else 0
+                    
+                    self.watchlist_tree.insert('', 'end', values=(
+                        symbol,
+                        f"NPR {current_price:.2f}",
+                        f"{change:+.2f} ({change_pct:+.2f}%)"
+                    ))
+                else:
+                    self.watchlist_tree.insert('', 'end', values=(
+                        symbol,
+                        "N/A",
+                        "N/A"
+                    ))
+                    
+    def _search_portfolio(self) -> None:
+        """Open advanced search dialog"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Advanced Search")
+        dialog.geometry("400x300")
+        
+        # Center the dialog
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        ttk.Label(dialog, text="Search Portfolio & Watchlist", font=('Arial', 12, 'bold')).pack(pady=10)
+        
+        # Search options
+        search_frame = ttk.LabelFrame(dialog, text="Search Options", padding="10")
+        search_frame.pack(pady=10, padx=20, fill=tk.BOTH, expand=True)
+        
+        ttk.Label(search_frame, text="Symbol:").grid(row=0, column=0, sticky='w', pady=5)
+        search_entry = ttk.Entry(search_frame, width=20)
+        search_entry.grid(row=0, column=1, pady=5, padx=10)
+        
+        def perform_search():
+            term = search_entry.get().strip().upper()
+            if term:
+                self.search_entry.delete(0, tk.END)
+                self.search_entry.insert(0, term)
+                self._on_search(None)
+                dialog.destroy()
+                
+        # Buttons
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=20)
+        
+        ttk.Button(button_frame, text="Search", command=perform_search).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Clear", command=lambda: [search_entry.delete(0, tk.END), self.search_entry.delete(0, tk.END), self._on_search(None)]).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        
+        search_entry.focus()
+        
+    def _clear_cache(self) -> None:
+        """Clear cached data and reset"""
+        try:
+            result = messagebox.askyesno("Clear Cache", "This will remove all cached stock data. Continue?")
+            if result:
+                self.stock_data.clear()
+                self._cleanup_old_data()
+                self.logger.info("Cache cleared by user")
+                messagebox.showinfo("Success", "Cache cleared successfully")
+                self.status_var.set("Cache cleared")
+        except Exception as e:
+            self.logger.error(f"Failed to clear cache: {e}")
+            messagebox.showerror("Error", f"Failed to clear cache: {str(e)}")
+            
+    def _toggle_theme(self) -> None:
+        """Toggle between light and dark themes"""
+        try:
+            # Simple theme toggle (basic implementation)
+            if hasattr(self, 'current_theme') and self.current_theme == 'dark':
+                # Switch to light theme
+                self.root.tk_setPalette(background='white')
+                self.current_theme = 'light'
+                self.logger.info("Switched to light theme")
+            else:
+                # Switch to dark theme
+                self.root.tk_setPalette(background='#2b2b2b', foreground='white')
+                self.current_theme = 'dark'
+                self.logger.info("Switched to dark theme")
+                
+            messagebox.showinfo("Theme", f"Switched to {self.current_theme} theme")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to toggle theme: {e}")
+            messagebox.showerror("Theme Error", f"Failed to toggle theme: {str(e)}")
             
     def add_to_watchlist(self) -> None:
         """Add stock to watchlist with validation and logging"""
