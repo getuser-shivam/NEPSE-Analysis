@@ -21,6 +21,8 @@ import re
 import csv
 import math
 from collections import defaultdict
+import argparse
+import sys
 
 class NEPSEAnalysisApp:
     def __init__(self, root):
@@ -89,6 +91,13 @@ class NEPSEAnalysisApp:
             'chart_updates': 0,
             'errors_count': 0,
             'last_activity': datetime.now()
+        }
+        
+        # Initialize backup management
+        self.backup_manager = {
+            'max_backups': 10,
+            'backup_interval_hours': 24,
+            'last_backup': None
         }
         
     def _load_config(self) -> None:
@@ -746,6 +755,82 @@ class NEPSEAnalysisApp:
                 
         except Exception as e:
             self.logger.error(f"Failed to update performance stats: {e}")
+            
+    def _manage_backups(self) -> None:
+        """Manage backup rotation and cleanup"""
+        try:
+            backup_dir = "backups"
+            if not os.path.exists(backup_dir):
+                return
+                
+            # Get all backup files
+            backup_files = []
+            for file in os.listdir(backup_dir):
+                if file.startswith('20') and file.endswith('.pkl'):
+                    backup_files.append(file)
+                    
+            # Sort by creation time (newest first)
+            backup_files.sort(reverse=True)
+            
+            # Remove old backups if we have too many
+            max_backups = self.backup_manager['max_backups']
+            if len(backup_files) > max_backups:
+                for old_backup in backup_files[max_backups:]:
+                    old_path = os.path.join(backup_dir, old_backup)
+                    os.remove(old_path)
+                    self.logger.info(f"Removed old backup: {old_backup}")
+                    
+            # Update last backup time
+            if backup_files:
+                self.backup_manager['last_backup'] = datetime.now()
+                
+        except Exception as e:
+            self.logger.error(f"Failed to manage backups: {e}")
+            
+    def _create_enhanced_backup(self) -> None:
+        """Create enhanced backup with metadata"""
+        try:
+            if not self.config.get('backup_enabled', True):
+                return
+                
+            backup_dir = "backups"
+            if not os.path.exists(backup_dir):
+                os.makedirs(backup_dir)
+                
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            # Create backup metadata
+            backup_metadata = {
+                'timestamp': timestamp,
+                'portfolio_size': len(self.portfolio),
+                'watchlist_size': len(self.watchlist),
+                'stock_data_symbols': len(self.stock_data),
+                'app_version': '2.0.0',
+                'performance_stats': self.performance_stats,
+                'config': self.config
+            }
+            
+            # Backup data files
+            backed_up_files = []
+            for file_path in [self.data_file, self.portfolio_file, self.watchlist_file]:
+                if os.path.exists(file_path):
+                    backup_name = f"{timestamp}_{os.path.basename(file_path)}"
+                    backup_path = os.path.join(backup_dir, backup_name)
+                    shutil.copy2(file_path, backup_path)
+                    backed_up_files.append(backup_name)
+                    
+            # Save metadata
+            metadata_path = os.path.join(backup_dir, f"{timestamp}_metadata.json")
+            with open(metadata_path, 'w') as f:
+                json.dump(backup_metadata, f, indent=2)
+                
+            self.logger.info(f"Enhanced backup created: {backed_up_files}")
+            
+            # Manage backup rotation
+            self._manage_backups()
+            
+        except Exception as e:
+            self.logger.error(f"Failed to create enhanced backup: {e}")
         
     def _calculate_bollinger_bands(self, prices, window=20, num_std=2):
         """Calculate Bollinger Bands"""
@@ -1262,9 +1347,8 @@ class NEPSEAnalysisApp:
         try:
             self._show_progress_bar("Saving data...")
             
-            # Create backup before saving
-            if self.config.get('backup_enabled', True):
-                self._create_backup()
+            # Create enhanced backup before saving
+            self._create_enhanced_backup()
             
             saved_files = []
             
@@ -2336,10 +2420,78 @@ class NEPSEAnalysisApp:
             self.logger.error(f"Failed to show settings: {e}")
             messagebox.showerror("Error", f"Failed to show settings: {str(e)}")
 
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description="NEPSE Stock Analysis Tool - Advanced stock analysis with portfolio management",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=""""
+Examples:
+  %(prog)s                    # Run with default settings
+  %(prog)s --symbol NEPSE --start 2023-01-01 --end 2023-12-31
+  %(prog)s --import-portfolio portfolio.csv  # Import portfolio from CSV
+  %(prog)s --no-backup                # Disable backup creation
+  %(prog)s --debug                   # Enable debug logging
+        """
+    )
+    
+    parser.add_argument('--symbol', '-s', type=str, help='Stock symbol to fetch')
+    parser.add_argument('--start', type=str, help='Start date (YYYY-MM-DD)')
+    parser.add_argument('--end', type=str, help='End date (YYYY-MM-DD)')
+    parser.add_argument('--import-portfolio', '-i', type=str, help='Import portfolio from CSV/Excel file')
+    parser.add_argument('--no-backup', action='store_true', help='Disable backup creation')
+    parser.add_argument('--debug', action='store_true', help='Enable debug logging')
+    
+    return parser.parse_args()
+    
 def main():
-    root = tk.Tk()
-    app = NEPSEAnalysisApp(root)
-    root.mainloop()
+    """Main entry point with enhanced argument handling"""
+    try:
+        args = parse_arguments()
+        
+        # Create root window
+        root = tk.Tk()
+        
+        # Set debug logging if requested
+        if args.debug:
+            logging.getLogger().setLevel(logging.DEBUG)
+            
+        # Create application
+        app = NEPSEAnalysisApp(root)
+        
+        # Handle command line arguments
+        if args.symbol:
+            app.symbol_entry.delete(0, tk.END)
+            app.symbol_entry.insert(0, args.symbol.upper())
+            
+        if args.start:
+            app.start_date_entry.delete(0, tk.END)
+            app.start_date_entry.insert(0, args.start)
+            
+        if args.end:
+            app.end_date_entry.delete(0, tk.END)
+            app.end_date_entry.insert(0, args.end)
+            
+        if args.import_portfolio:
+            app._import_portfolio_csv(args.import_portfolio)
+            
+        if args.no_backup:
+            app.config['backup_enabled'] = False
+            app.logger.info("Backup disabled via command line")
+            
+        # Auto-fetch data if symbol provided
+        if args.symbol and args.start and args.end:
+            app.fetch_stock_data()
+            
+        # Start the GUI
+        root.mainloop()
+        
+    except KeyboardInterrupt:
+        print("\nApplication interrupted by user")
+        sys.exit(0)
+    except Exception as e:
+        print(f"\nFatal error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
