@@ -23,6 +23,9 @@ import math
 from collections import defaultdict
 import argparse
 import sys
+import asyncio
+import aiohttp
+import time
 
 class NEPSEAnalysisApp:
     def __init__(self, root):
@@ -106,6 +109,11 @@ class NEPSEAnalysisApp:
             'auto_cleanup_interval': 300,  # 5 minutes
             'last_cleanup': datetime.now()
         }
+        
+        # Initialize async capabilities
+        self.async_enabled = True
+        self.async_loop = None
+        self.session = None
         
     def _load_config(self) -> None:
         """Load configuration from JSON file"""
@@ -247,7 +255,7 @@ class NEPSEAnalysisApp:
         
         # Watchlist frame
         self.watchlist_frame = ttk.LabelFrame(self.control_frame, text="Watchlist", padding="5")
-        self.watchlist_frame.grid(row=24, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        self.watchlist_frame.grid(row=25, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
         
     def create_widgets(self):
         # Stock Symbol Input with tooltip
@@ -297,32 +305,33 @@ class NEPSEAnalysisApp:
         ttk.Button(self.control_frame, text="Clear Cache", command=self._clear_cache).grid(row=12, column=0, columnspan=2, pady=5)
         ttk.Button(self.control_frame, text="Theme", command=self._toggle_theme).grid(row=13, column=0, columnspan=2, pady=5)
         ttk.Button(self.control_frame, text="Settings", command=self._show_settings).grid(row=14, column=0, columnspan=2, pady=5)
+        ttk.Button(self.control_frame, text="Performance Test", command=self._performance_comparison).grid(row=15, column=0, columnspan=2, pady=5)
         
         # Analysis Options
-        ttk.Separator(self.control_frame, orient='horizontal').grid(row=15, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
-        ttk.Label(self.control_frame, text="Analysis Options:", font=('Arial', 10, 'bold')).grid(row=16, column=0, columnspan=2, pady=5)
+        ttk.Separator(self.control_frame, orient='horizontal').grid(row=16, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        ttk.Label(self.control_frame, text="Analysis Options:", font=('Arial', 10, 'bold')).grid(row=17, column=0, columnspan=2, pady=5)
         
         self.show_ma = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.control_frame, text="Moving Average", variable=self.show_ma).grid(row=17, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Moving Average", variable=self.show_ma).grid(row=18, column=0, columnspan=2, sticky=tk.W)
         
         self.show_volume = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.control_frame, text="Volume", variable=self.show_volume).grid(row=18, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Volume", variable=self.show_volume).grid(row=19, column=0, columnspan=2, sticky=tk.W)
         
         self.show_rsi = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="RSI", variable=self.show_rsi).grid(row=19, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="RSI", variable=self.show_rsi).grid(row=20, column=0, columnspan=2, sticky=tk.W)
         
         self.show_macd = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="MACD", variable=self.show_macd).grid(row=20, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="MACD", variable=self.show_macd).grid(row=21, column=0, columnspan=2, sticky=tk.W)
         
         self.show_bollinger = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="Bollinger Bands", variable=self.show_bollinger).grid(row=21, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Bollinger Bands", variable=self.show_bollinger).grid(row=22, column=0, columnspan=2, sticky=tk.W)
         
         # Advanced indicators
         self.show_stochastic = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="Stochastic", variable=self.show_stochastic).grid(row=22, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Stochastic", variable=self.show_stochastic).grid(row=23, column=0, columnspan=2, sticky=tk.W)
         
         self.show_williams = tk.BooleanVar(value=False)
-        ttk.Checkbutton(self.control_frame, text="Williams %R", variable=self.show_williams).grid(row=23, column=0, columnspan=2, sticky=tk.W)
+        ttk.Checkbutton(self.control_frame, text="Williams %R", variable=self.show_williams).grid(row=24, column=0, columnspan=2, sticky=tk.W)
         
         # Create matplotlib figure for charts
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(10, 8))
@@ -892,6 +901,89 @@ class NEPSEAnalysisApp:
         except Exception as e:
             self.logger.error(f"Failed to get memory usage: {e}")
             return {}
+            
+    async def _async_fetch_yahoo_data(self, symbol: str, start_date: str, end_date: str) -> Optional[pd.DataFrame]:
+        """Async Yahoo Finance data fetching"""
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+                
+            # Use yfinance with async wrapper
+            loop = asyncio.get_event_loop()
+            
+            # Run yfinance in thread pool to avoid blocking
+            data = await loop.run_in_executor(
+                None, 
+                lambda: yf.Ticker(symbol).history(start=start_date, end=end_date)
+            )
+            
+            if data is not None and not data.empty:
+                self.logger.info(f"Async Yahoo Finance returned {len(data)} records for {symbol}")
+                return data
+            else:
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Async Yahoo Finance failed for {symbol}: {e}")
+            return None
+            
+    async def _async_fetch_multiple_stocks(self, symbols: List[str], start_date: str, end_date: str) -> Dict[str, pd.DataFrame]:
+        """Fetch multiple stocks concurrently"""
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+                
+            # Create tasks for concurrent fetching
+            tasks = []
+            for symbol in symbols:
+                task = self._async_fetch_yahoo_data(symbol, start_date, end_date)
+                tasks.append((symbol, task))
+                
+            # Wait for all tasks to complete
+            results = {}
+            for symbol, task in tasks:
+                try:
+                    data = await task
+                    if data is not None and not data.empty:
+                        results[symbol] = data
+                        self.logger.info(f"Async fetched {symbol}: {len(data)} records")
+                except Exception as e:
+                    self.logger.error(f"Failed to fetch {symbol} async: {e}")
+                    
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"Failed to fetch multiple stocks async: {e}")
+            return {}
+            
+    def _async_data_fetch_wrapper(self, symbols: List[str], start_date: str, end_date: str) -> None:
+        """Wrapper for async data fetching in tkinter environment"""
+        try:
+            # Create new event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            # Run the async operation
+            results = loop.run_until_complete(
+                self._async_fetch_multiple_stocks(symbols, start_date, end_date)
+            )
+            
+            # Update GUI in main thread
+            for symbol, data in results.items():
+                self.stock_data[symbol] = data
+                self.root.after(0, lambda s=symbol, d=data: self._update_chart(s, d))
+                
+            # Update status
+            self.root.after(0, lambda: self.status_var.set(f"Async fetched {len(results)} stocks"))
+            self.root.after(0, self._hide_progress_bar)
+            
+            # Close loop
+            loop.close()
+            
+        except Exception as e:
+            self.logger.error(f"Async data fetch wrapper failed: {e}")
+            self.root.after(0, lambda: messagebox.showerror("Async Error", f"Failed to fetch data: {str(e)}"))
+            self.root.after(0, self._hide_progress_bar)
         
     def _calculate_bollinger_bands(self, prices, window=20, num_std=2):
         """Calculate Bollinger Bands"""
@@ -2496,6 +2588,90 @@ class NEPSEAnalysisApp:
         except Exception as e:
             self.logger.error(f"Failed to show settings: {e}")
             messagebox.showerror("Error", f"Failed to show settings: {str(e)}")
+            
+    def _performance_comparison(self) -> None:
+        """Compare sync vs async performance"""
+        try:
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Performance Comparison")
+            dialog.geometry("600x400")
+            
+            # Center dialog
+            dialog.transient(self.root)
+            dialog.grab_set()
+            
+            # Create text widget for results
+            text_widget = tk.Text(dialog, wrap=tk.WORD, padx=10, pady=10)
+            text_widget.pack(fill=tk.BOTH, expand=True)
+            
+            # Test symbols
+            test_symbols = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA']
+            start_date = '2023-01-01'
+            end_date = '2023-12-31'
+            
+            text_widget.insert(tk.END, "Performance Comparison: Sync vs Async\n")
+            text_widget.insert(tk.END, "=" * 50 + "\n\n")
+            
+            # Test synchronous fetching
+            text_widget.insert(tk.END, "Testing Synchronous Fetching...\n")
+            dialog.update()
+            
+            sync_start = time.time()
+            sync_results = {}
+            
+            for symbol in test_symbols:
+                try:
+                    ticker = yf.Ticker(symbol)
+                    data = ticker.history(start=start_date, end=end_date)
+                    if data is not None and not data.empty:
+                        sync_results[symbol] = len(data)
+                except Exception as e:
+                    sync_results[symbol] = f"Error: {e}"
+                    
+            sync_time = time.time() - sync_start
+            
+            text_widget.insert(tk.END, f"Synchronous time: {sync_time:.2f} seconds\n")
+            text_widget.insert(tk.END, f"Synchronous results: {sync_results}\n\n")
+            
+            # Test asynchronous fetching
+            text_widget.insert(tk.END, "Testing Asynchronous Fetching...\n")
+            dialog.update()
+            
+            async_start = time.time()
+            
+            # Run async test
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            async_results = loop.run_until_complete(
+                self._async_fetch_multiple_stocks(test_symbols, start_date, end_date)
+            )
+            
+            async_time = time.time() - async_start
+            loop.close()
+            
+            text_widget.insert(tk.END, f"Asynchronous time: {async_time:.2f} seconds\n")
+            text_widget.insert(tk.END, f"Asynchronous results: { {k: len(v) if hasattr(v, '__len__') else v for k, v in async_results.items()} }\n\n")
+            
+            # Performance improvement
+            if sync_time > 0:
+                improvement = ((sync_time - async_time) / sync_time) * 100
+                text_widget.insert(tk.END, f"Performance improvement: {improvement:.1f}%\n\n")
+            
+            # Memory usage comparison
+            text_widget.insert(tk.END, "Memory Usage:\n")
+            memory_usage = self._get_memory_usage()
+            for key, value in memory_usage.items():
+                text_widget.insert(tk.END, f"{key}: {value}\n")
+            
+            # Close button
+            ttk.Button(dialog, text="Close", command=dialog.destroy).pack(pady=10)
+            
+            self.logger.info("Performance comparison completed")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to run performance comparison: {e}")
+            messagebox.showerror("Error", f"Failed to run performance comparison: {str(e)}")
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments"""
