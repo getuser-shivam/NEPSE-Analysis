@@ -7,7 +7,7 @@ const router = Router();
 router.get(
   '/',
   asyncHandler(async (_request, response) => {
-    await prisma.$queryRaw`SELECT 1`;
+    await prisma.appSetting.count();
 
     response.json({
       status: 'ok',
