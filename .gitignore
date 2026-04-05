@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.log
+
+backend/node_modules/
+backend/.env
+backend/*.db
+backend/*.db-journal
+backend/prisma/*.db
+backend/prisma/*.db-journal
+
+dart_client/.dart_tool/
+dart_client/.packages
+dart_client/build/
+dart_client/pubspec.lock
