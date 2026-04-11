@@ -81,7 +81,7 @@ jobs:
         with:
           path: |
             ~/.pub-cache
-            ./nepse_analysis/.dart_tool
+            ./apps/mobile/.dart_tool
           key: ${{ runner.os }}-dart-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-dart-
@@ -106,7 +106,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
         with:
-          files: ./nepse_analysis/coverage.lcov
+          files: ./apps/mobile/coverage.lcov
           flags: dart
           name: dart-coverage
           fail_ci_if_error: false
@@ -117,8 +117,8 @@ jobs:
         with:
           name: dart-test-results
           path: |
-            ./nepse_analysis/coverage/
-            ./nepse_analysis/test-results.json
+            ./apps/mobile/coverage/
+            ./apps/mobile/test-results.json
           retention-days: 30
 
   # ============================================
@@ -202,8 +202,8 @@ jobs:
         with:
           name: node-test-results
           path: |
-            ./backend/coverage/
-            ./backend/test-results/
+            ./apps/api/coverage/
+            ./apps/api/test-results/
           retention-days: 30
 
   # ============================================
@@ -241,7 +241,7 @@ jobs:
         run: npm ci
 
       - name: Build Dart documentation
-        working-directory: ./nepse_analysis
+        working-directory: ./apps/mobile
         run: |
           dart pub get
           dart doc --output ../_site/dart-docs || echo "Dart doc generation skipped"
