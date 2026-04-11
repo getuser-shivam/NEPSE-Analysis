@@ -9,32 +9,40 @@ https.get({
   res.on('end', () => {
     try {
       const parsed = JSON.parse(data);
-      const runs = parsed.workflow_runs.filter(r => r.name === 'NEPSE Analysis CI/CD');
-      if (runs.length === 0) return console.log('No main runs found in top 10');
+      const runs = parsed.workflow_runs.filter(r => r.name === 'Deploy Pages');
+      if (runs.length === 0) {
+        console.log('No Deploy Pages runs found yet. Listing all runs:');
+        parsed.workflow_runs.slice(0, 5).forEach(r => {
+          console.log(`  ${r.name}: ${r.status} | ${r.conclusion} | ${r.html_url}`);
+        });
+        return;
+      }
+      const run = runs[0];
+      console.log(`Deploy Pages Run: ${run.id}`);
+      console.log(`Status: ${run.status} | Conclusion: ${run.conclusion}`);
+      console.log(`URL: ${run.html_url}`);
       
-      const latestRunId = runs[0].id;
-      console.log(`Latest Main Run ID: ${latestRunId}`);
-      console.log(`URL: ${runs[0].html_url}`);
-      
-      https.get({
-        hostname: 'api.github.com',
-        path: `/repos/getuser-shivam/NEPSE-Analysis/actions/runs/${latestRunId}/jobs`,
-        headers: {'User-Agent': 'Node.js'}
-      }, res2 => {
-        let data2 = '';
-        res2.on('data', chunk => data2 += chunk);
-        res2.on('end', () => {
-          const parsed2 = JSON.parse(data2);
-          parsed2.jobs.forEach(j => {
-            console.log(`${j.name}: ${j.status} | ${j.conclusion}`);
-            if (j.conclusion === 'failure') {
-               j.steps.forEach(s => {
-                 if (s.conclusion === 'failure') console.log(`  Failed step: ${s.name} (${s.number})`);
-               });
-            }
+      if (run.status === 'completed') {
+        https.get({
+          hostname: 'api.github.com',
+          path: `/repos/getuser-shivam/NEPSE-Analysis/actions/runs/${run.id}/jobs`,
+          headers: {'User-Agent': 'Node.js'}
+        }, res2 => {
+          let data2 = '';
+          res2.on('data', c => data2 += c);
+          res2.on('end', () => {
+            const p2 = JSON.parse(data2);
+            p2.jobs.forEach(j => {
+              console.log(`  Job: ${j.name} | ${j.conclusion}`);
+              if (j.conclusion === 'failure') {
+                j.steps.forEach(s => {
+                  if (s.conclusion === 'failure') console.log(`    FAILED: ${s.name}`);
+                });
+              }
+            });
           });
         });
-      }).on('error', console.error);
-    } catch(e) { }
+      }
+    } catch(e) { console.error(e); }
   });
-}).on('error', console.error);
+});

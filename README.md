@@ -31,7 +31,7 @@ A comprehensive stock analysis application for the Nepal Stock Exchange (NEPSE) 
 - **Node.js Backend**: Express API with Prisma ORM for data persistence
 - **Dart Client**: Type-safe API client for Flutter integration
 - **Dashboard API**: Single aggregated payload endpoint for UI consumption
-- **Database System**: Fully integrated with MySQL for robust, enterprise-grade data management
+- **Database System**: Microsoft SQL Server with Prisma ORM for enterprise-grade data management
 
 ## 🔧 CI/CD Pipeline
 
@@ -48,7 +48,7 @@ This project uses GitHub Actions for automated testing and deployment.
 ### Automated Testing
 
 - **Dart Tests**: Formatting, analysis, unit tests with coverage
-- **Node.js Tests**: Linting, unit tests, integration tests with MySQL
+- **Node.js Tests**: Linting, unit tests, integration tests with SQL Server
 - **Security Scan**: Vulnerability scanning with Trivy
 
 ### Deployment
@@ -227,10 +227,10 @@ NEPSE-Analysis/
 
 ### Stack Components
 
-- **Backend (Node.js)**: Enterprise-ready API with Prisma ORM and MySQL.
+- **Backend (Node.js)**: Enterprise-ready API with Prisma ORM and SQL Server.
 - **Mobile (Flutter/Dart)**: Cross-platform mobile app with Riverpod state management.
 - **Web Client (Dart)**: Lightweight web dashboard and SDK for NEPSE data.
-- **Database (MySQL)**: Production-grade relational database for all data persistence.
+- **Database (SQL Server)**: Microsoft SQL Server for production-grade relational data persistence.
 
 ## 🔧 Configuration
 
@@ -238,7 +238,7 @@ NEPSE-Analysis/
 
 Create a `.env` file in `apps/api/`:
 ```env
-DATABASE_URL="mysql://user:password@localhost:3306/nepse_analysis"
+DATABASE_URL="sqlserver://localhost:1433;database=nepse_analysis;user=sa;password=YourStrong@Passw0rd;trustServerCertificate=true"
 GROQ_API_KEY="your-groq-api-key"
 POLLENS_API_KEY="your-pollens-api-key"
 PORT=3000
@@ -252,7 +252,7 @@ cd apps/api
 # Generate Prisma client
 npx prisma generate
 
-# Push schema to MySQL
+# Push schema to SQL Server
 npx prisma db push
 
 # Seed initial data
