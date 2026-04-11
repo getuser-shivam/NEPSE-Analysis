@@ -1,0 +1,271 @@
+name: Quality Gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+  DART_VERSION: '3.2'
+  COVERAGE_THRESHOLD: 80
+
+jobs:
+  # ============================================
+  # CODE QUALITY ANALYSIS
+  # ============================================
+  sonarqube:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ env.DART_VERSION }}
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Generate coverage reports
+        run: |
+          # Node.js coverage
+          cd backend
+          npm ci
+          npm test -- --coverage || true
+          cd ..
+          
+          # Dart coverage
+          cd nepse_analysis
+          dart pub get
+          dart test --coverage=coverage
+          dart pub global activate coverage
+          format_coverage --lcov --in=coverage --out=coverage.lcov --packages=.dart_tool/package_config.json
+          cd ..
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=getuser-shivam_NEPSE-Analysis
+            -Dsonar.organization=getuser-shivam
+            -Dsonar.javascript.lcov.reportPaths=backend/coverage/lcov.info
+            -Dsonar.dart.lcov.reportPaths=nepse_analysis/coverage.lcov
+            -Dsonar.sources=backend/src,nepse_analysis/lib
+            -Dsonar.tests=backend/test,nepse_analysis/test
+            -Dsonar.coverage.exclusions=**/*.test.js,**/*_test.dart,**/test/**
+            -Dsonar.qualitygate.wait=true
+
+  # ============================================
+  # CODE COVERAGE CHECK
+  # ============================================
+  coverage-check:
+    name: Coverage Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: './backend/package-lock.json'
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ env.DART_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          cd backend && npm ci
+          cd ../nepse_analysis && dart pub get
+
+      - name: Run tests with coverage
+        run: |
+          cd backend
+          npm test -- --coverage --coverageReporters=text-summary || true
+          cd ../nepse_analysis
+          dart test --coverage=coverage
+          dart pub global activate coverage
+          format_coverage --lcov --in=coverage --out=coverage.lcov --packages=.dart_tool/package_config.json --report-on=lib
+
+      - name: Check coverage threshold
+        run: |
+          # Parse Dart coverage
+          if [ -f nepse_analysis/coverage.lcov ]; then
+            LINES=$(grep -o 'LF:[0-9]*' nepse_analysis/coverage.lcov | head -1 | cut -d: -f2)
+            HITS=$(grep -o 'LH:[0-9]*' nepse_analysis/coverage.lcov | head -1 | cut -d: -f2)
+            if [ -n "$LINES" ] && [ -n "$HITS" ] && [ "$LINES" -gt 0 ]; then
+              COVERAGE=$(echo "scale=2; $HITS * 100 / $LINES" | bc)
+              echo "Dart Coverage: $COVERAGE%"
+              
+              if (( $(echo "$COVERAGE < ${{ env.COVERAGE_THRESHOLD }}" | bc -l) )); then
+                echo "❌ Coverage $COVERAGE% is below threshold ${{ env.COVERAGE_THRESHOLD }}%"
+                exit 1
+              fi
+            fi
+          fi
+          
+          echo "✅ Coverage check passed"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./backend/coverage/lcov.info,./nepse_analysis/coverage.lcov
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Comment coverage on PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Try to read coverage from files
+            let dartCoverage = 'N/A';
+            let nodeCoverage = 'N/A';
+            
+            try {
+              const lcov = fs.readFileSync('nepse_analysis/coverage.lcov', 'utf8');
+              const lines = lcov.match(/LF:(\d+)/g);
+              const hits = lcov.match(/LH:(\d+)/g);
+              if (lines && hits) {
+                const total = lines.reduce((a, b) => a + parseInt(b.split(':')[1]), 0);
+                const hit = hits.reduce((a, b) => a + parseInt(b.split(':')[1]), 0);
+                dartCoverage = ((hit / total) * 100).toFixed(2) + '%';
+              }
+            } catch (e) {}
+            
+            const body = `## 📊 Code Coverage Report
+            
+            | Language | Coverage | Status |
+            |----------|----------|--------|
+            | Dart | ${dartCoverage} | ${parseFloat(dartCoverage) >= 80 ? '✅' : '⚠️'} |
+            | Node.js | ${nodeCoverage} | ✅ |
+            
+            **Required Threshold:** 80%
+            
+            View detailed report on [Codecov](https://codecov.io/gh/${context.repo.owner}/${context.repo.repo})`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # ============================================
+  # CODE METRICS
+  # ============================================
+  code-metrics:
+    name: Code Metrics
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Calculate metrics
+        uses: codacy/codacy-analysis-cli-action@master
+        with:
+          tool: metrics
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          verbose: true
+
+      - name: Check code duplication
+        run: |
+          # Use jscpd for duplication detection
+          npm install -g jscpd
+          jscpd --reporters console,html --output reports/ \
+            --ignore "**/*.test.js,**/*_test.dart,**/node_modules/**,**/.dart_tool/**" \
+            backend/src nepse_analysis/lib || true
+
+      - name: Check complexity
+        run: |
+          # Install complexity checker
+          cd backend
+          npm install -g complexity-report
+          cr -o complexity.json -f json src/ || true
+          
+          # Check for high complexity functions
+          if [ -f complexity.json ]; then
+            HIGH_COMPLEXITY=$(cat complexity.json | grep -o '"complexity":[0-9]*' | grep -v '"complexity":[0-9]' | wc -l)
+            if [ $HIGH_COMPLEXITY -gt 0 ]; then
+              echo "⚠️ Found $HIGH_COMPLEXITY functions with high complexity"
+            fi
+          fi
+
+  # ============================================
+  # QUALITY GATE SUMMARY
+  # ============================================
+  quality-summary:
+    name: Quality Gate Summary
+    runs-on: ubuntu-latest
+    needs: [sonarqube, coverage-check, code-metrics]
+    if: always()
+    
+    steps:
+      - name: Generate quality report
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const results = {
+              sonarqube: '${{ needs.sonarqube.result }}',
+              coverage: '${{ needs.coverage-check.result }}',
+              metrics: '${{ needs.code-metrics.result }}'
+            };
+            
+            const allPassed = Object.values(results).every(r => r === 'success');
+            
+            const summary = Object.entries(results).map(([name, result]) => {
+              const icon = result === 'success' ? '✅' : result === 'failure' ? '❌' : '⚠️';
+              return `${icon} ${name}: ${result}`;
+            }).join('\n');
+            
+            const body = `## 🚦 Quality Gates
+            
+            ${summary}
+            
+            **Overall:** ${allPassed ? '✅ All quality gates passed' : '❌ Some quality gates failed'}
+            
+            ${!allPassed ? 'Please address the failing checks before merging.' : 'Ready to merge!'}`;
+            
+            if (context.issue.number) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
+            
+            if (!allPassed) {
+              core.setFailed('Quality gates failed');
+            }

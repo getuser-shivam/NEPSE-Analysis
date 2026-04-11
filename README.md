@@ -27,7 +27,99 @@ A comprehensive stock analysis application for the Nepal Stock Exchange (NEPSE) 
 - **Comprehensive Testing**: 100% test coverage with automated test suite
 - **Memory Management**: Advanced optimization and monitoring
 
-## � Installation
+### Workflow Automation System
+- **AI-Powered Workflows**: Automated code review and enhancement workflows
+- **Auto-Development**: Self-interacting development system for continuous improvement
+- **GUI Launchers**: Multiple interfaces (Web, Desktop Panel, Simple GUI)
+- **Batch Execution**: Run workflows sequentially with configurable delays
+
+### API Architecture
+- **Node.js Backend**: Express API with Prisma ORM for data persistence
+- **Dart Client**: Type-safe API client for Flutter integration
+- **Dashboard API**: Single aggregated payload endpoint for UI consumption
+- **Database Support**: SQLite (default) or PostgreSQL/MySQL
+
+## � CI/CD Pipeline
+
+This project uses GitHub Actions for automated testing and deployment.
+
+### Workflows
+
+| Workflow | Purpose | Trigger |
+|----------|---------|---------|
+| **Main CI/CD** | Build, test, deploy | Push to `main` |
+| **PR Checks** | Validate PRs | Pull requests |
+| **Status Check** | Daily health monitoring | Scheduled daily |
+
+### Automated Testing
+
+- **Dart Tests**: Formatting, analysis, unit tests with coverage
+- **Node.js Tests**: Linting, unit tests, integration tests with SQL Server
+- **Security Scan**: Vulnerability scanning with Trivy
+
+### Deployment
+
+- **Staging**: Automatic deployment on every push to `main`
+- **Production**: Manual approval required
+- **GitHub Pages**: Documentation and web dashboard hosting
+
+### Setup Required Secrets
+
+Configure these in GitHub repository settings:
+
+- `GROQ_API_KEY` - Groq AI API key
+- `POLLENS_API_KEY` - Pollens AI API key
+
+See [SECRETS.md](.github/SECRETS.md) for detailed setup instructions.
+
+### Manual Deployment
+
+Trigger production deployment:
+
+1. Go to **Actions** → **NEPSE Analysis CI/CD**
+2. Click **Run workflow**
+3. Select **production** target
+4. Click **Run workflow**
+
+## 📱 Mobile Development
+
+### Android Debugging
+
+The NEPSE Analysis Flutter app supports USB and wireless debugging.
+
+**Quick Setup:**
+
+```bash
+# Navigate to Flutter app
+cd nepse_app
+
+# Setup wireless debugging (Windows PowerShell)
+scripts/setup-debugging.ps1
+
+# Or on macOS/Linux
+scripts/setup-debugging.sh
+
+# Run with wireless debugging
+flutter run --device-id 192.168.1.100:5555
+```
+
+**VS Code Launch Configurations:**
+
+1. Open **Run and Debug** panel (Ctrl+Shift+D)
+2. Select configuration:
+   - `NEPSE Analysis (USB Device)` - For USB debugging
+   - `NEPSE Analysis (Wireless)` - For wireless debugging
+   - `NEPSE Analysis (Profile Mode)` - For performance testing
+
+**Features:**
+- USB debugging with hot reload
+- Wireless debugging over Wi-Fi
+- VS Code tasks for device management
+- Breakpoint debugging and variable inspection
+
+See [DEBUGGING_SETUP.md](nepse_app/DEBUGGING_SETUP.md) for complete setup instructions.
+
+## 📋 Installation
 
 ### Prerequisites
 - Python 3.8 or higher
@@ -199,23 +291,30 @@ pytest --cov=main --cov-report=html
 - **Range**: -100 to 0, with -20 overbought, -80 oversold
 - **Period**: Default 14 days
 
-## 💾 Data Management
+## 📁 Project Structure
 
-### File Structure
 ```
 NEPSE-Analysis/
-├── main.py                 # Main application
-├── config.json            # Configuration settings
-├── nepse_data.pkl         # Cached stock data
-├── portfolio.pkl          # Portfolio data
-├── watchlist.pkl          # Watchlist data
-├── backups/               # Backup directory
-├── logs/                  # Log files
-├── test_nepse_analysis.py # Test suite
-├── run_tests.py          # Test runner
-├── pytest.ini           # pytest configuration
-└── requirements.txt       # Dependencies
+├── tools/                  # Core Python analysis tools
+│   ├── main.py             # Desktop application entry point
+│   ├── technical_indicators.py
+│   ├── data_manager.py
+│   └── ai_analytics.py
+├── backend/                # Node.js + Prisma Express API
+├── nepse_app/              # Flutter Mobile Application
+├── dart_client/            # Dart/Web Client library & Dashboard
+├── scripts/                # Launchers and workflow scripts
+├── docs/                   # Project documentation
+├── backups/               # Automated data backups
+└── logs/                  # Application logs
 ```
+
+### Stack Components
+
+- **Python Tools**: The core engine for technical analysis and data crunching.
+- **Backend**: Enterprise-ready API serving the mobile and web clients.
+- **NEPSE App**: Flutter-based mobile experience with real-time sync.
+- **Dart Client**: Lightweight web interface and SDK for NEPSE data.
 
 ### Data Persistence
 - **Automatic Saving**: Data saved every 5 minutes by default
@@ -223,7 +322,27 @@ NEPSE-Analysis/
 - **Cache Management**: Intelligent cleanup of old data
 - **Error Recovery**: Robust error handling and data validation
 
-## 🔍 Troubleshooting
+## � Workflow Tools
+
+The project includes automated workflow tools for continuous improvement.
+
+### Quick Start
+Double-click `START_WORKFLOWS.bat` for a simple menu to launch workflows via:
+- **Web Browser** - Browser-based interface (easiest)
+- **Desktop Panel** - Floating window interface
+- **Simple GUI** - Basic tkinter window
+- **Command Line** - For advanced users
+
+### Available Workflows
+- **review** - Code review and bug checking
+
+### Auto-Prompt System
+For continuous auto-development, use `run_auto_prompt.bat` to:
+- Open editor (Windsurf, VSCode, or Cursor)
+- Run workflows sequentially
+- Loop infinitely for non-stop enhancement
+
+## �🔍 Troubleshooting
 
 ### Common Issues
 

@@ -1,0 +1,29 @@
+# Jekyll configuration for GitHub Pages
+# This file prevents Jekyll from processing the site
+
+# GitHub Pages settings
+theme: null
+remote_theme: null
+
+# Plugins (disabled for static site)
+plugins: []
+
+# Exclude from processing
+exclude:
+  - .github/
+  - .gitignore
+  - backend/node_modules/
+  - backend/prisma/
+  - backend/sql/
+  - nepse_analysis/.dart_tool/
+  - nepse_analysis/test/
+  - "*.gemspec"
+  - "Gemfile"
+
+# Enable safe mode
+safe: true
+
+# Disable Jekyll processing
+# This allows us to serve pure HTML/CSS/JS without Jekyll interference
+include:
+  - _site

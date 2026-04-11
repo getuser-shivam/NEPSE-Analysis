@@ -1,0 +1,39 @@
+{
+  "application": {
+    "name": "NEPSE Stock Analysis Tool",
+    "version": "2.0.0",
+    "author": "AI Enhanced"
+  },
+  "settings": {
+    "max_data_age_days": 7,
+    "backup_enabled": true,
+    "auto_save_interval": 300,
+    "chart_style": "seaborn-v0_8",
+    "default_period": "1y",
+    "max_watchlist_size": 50,
+    "log_level": "INFO"
+  },
+  "data_sources": {
+    "primary": "NEPSE",
+    "fallback": "Yahoo Finance",
+    "simulation": true
+  },
+  "validation": {
+    "symbol_min_length": 1,
+    "symbol_max_length": 10,
+    "date_range_max_years": 5,
+    "price_min": 0.01,
+    "price_max": 1000000
+  },
+  "ui": {
+    "window_width": 1200,
+    "window_height": 800,
+    "chart_figure_size": [10, 8],
+    "theme": "default"
+  },
+  "performance": {
+    "cache_enabled": true,
+    "cache_duration_hours": 24,
+    "thread_timeout_seconds": 30
+  }
+}

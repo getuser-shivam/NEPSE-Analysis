@@ -1,15 +1,32 @@
+# General
 __pycache__/
 *.py[cod]
 *.log
+logs/
+.DS_Store
+.env
 
-backend/node_modules/
-backend/.env
-backend/*.db
-backend/*.db-journal
-backend/prisma/*.db
-backend/prisma/*.db-journal
+# Apps - API
+apps/api/node_modules/
+apps/api/.env
+apps/api/*.db
+apps/api/*.db-journal
+apps/api/prisma/*.db
 
-dart_client/.dart_tool/
-dart_client/.packages
-dart_client/build/
-dart_client/pubspec.lock
+# Apps - Mobile
+apps/mobile/.dart_tool/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/.packages
+apps/mobile/build/
+apps/mobile/pubspec.lock
+
+# Packages - Client SDK
+packages/client_sdk/.dart_tool/
+packages/client_sdk/.packages
+packages/client_sdk/build/
+packages/client_sdk/pubspec.lock
+
+# Tools
+tools/analysis_engine/__pycache__/
+tools/analysis_engine/*.log

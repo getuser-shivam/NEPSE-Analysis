@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEPSE Dashboard | Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <h2>NEPSE Hub</h2>
+      <nav>
+        <div class="nav-item active">Market Dashboard</div>
+        <div class="nav-item">Portfolio Profile</div>
+        <div class="nav-item">Watchlist</div>
+        <div class="nav-item">Settings</div>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <header class="glass-card market-hero">
+        <div>
+          <span class="status-positive">NEPSE Index</span>
+          <div class="index-value">2,145.67</div>
+          <div class="status-positive">+26.43 (1.24%)</div>
+        </div>
+        <div>
+          <span>Market Volume</span>
+          <div class="index-value">NPR 4.2B</div>
+          <div class="status-positive">Active</div>
+        </div>
+      </header>
+
+      <section class="glass-card">
+        <h3>Top Gainers</h3>
+        <table id="gainers-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>LTP</th>
+              <th>Change</th>
+              <th>% Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>NABIL</td>
+              <td>545.20</td>
+              <td class="status-positive">+12.4</td>
+              <td class="status-positive">2.33%</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <div id="chart"></div>
+    </main>
+  </div>
+  <script defer src="main.dart.js"></script>
+</body>
+</html>

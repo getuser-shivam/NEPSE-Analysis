@@ -1,0 +1,73 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "NEPSE Analysis (USB Device)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "args": [
+                "--verbose"
+            ]
+        },
+        {
+            "name": "NEPSE Analysis (Wireless)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "args": [
+                "--device-id",
+                "${input:wirelessDeviceId}",
+                "--verbose"
+            ]
+        },
+        {
+            "name": "NEPSE Analysis (Profile Mode)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "flutterMode": "profile",
+            "args": [
+                "--verbose"
+            ]
+        },
+        {
+            "name": "NEPSE Analysis (Release Mode)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "flutterMode": "release",
+            "args": [
+                "--verbose"
+            ]
+        },
+        {
+            "name": "NEPSE Analysis (Attach)",
+            "request": "attach",
+            "type": "dart",
+            "deviceId": "${input:deviceId}"
+        },
+        {
+            "name": "Flutter: Run All Tests",
+            "type": "dart",
+            "request": "launch",
+            "program": "test/",
+            "noDebug": true
+        }
+    ],
+    "inputs": [
+        {
+            "id": "wirelessDeviceId",
+            "description": "Enter the wireless device IP:PORT (e.g., 192.168.1.100:5555)",
+            "default": "192.168.1.100:5555",
+            "type": "promptString"
+        },
+        {
+            "id": "deviceId",
+            "description": "Enter the device ID",
+            "type": "promptString"
+        }
+    ]
+}

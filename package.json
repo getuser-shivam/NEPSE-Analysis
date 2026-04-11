@@ -1,0 +1,18 @@
+{
+  "name": "nepse-analysis-monorepo",
+  "version": "1.0.0",
+  "description": "Standardized monorepo for NEPSE Analysis Platform",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "packages/client_sdk"
+  ],
+  "scripts": {
+    "api:dev": "npm run dev --workspace=apps/api",
+    "api:build": "npm run build --workspace=apps/api",
+    "api:start": "npm run start --workspace=apps/api",
+    "client:build": "cd packages/client_sdk && dart compile js web/main.dart -o web/main.dart.js",
+    "mobile:run": "cd apps/mobile && flutter run",
+    "setup": "npm install && cd apps/mobile && flutter pub get"
+  }
+}

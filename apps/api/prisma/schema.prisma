@@ -1,0 +1,620 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// NEPSE Analysis - Prisma Schema for SQL Server
+// Models: Stocks, Trading Data, Market Trends, User Preferences
+// =====================================================
+
+// ============================================
+// ENUMS (Stored as strings with constraints)
+// ============================================
+
+// ============================================
+// ENUM TYPE DEFINITIONS (Mapped to SQL Server strings)
+// ============================================
+
+// These are Prisma enums that map to SQL Server NVARCHAR columns
+// The validation is handled at the application level
+
+// ============================================
+// ENUM CONSTANTS (as comments for reference)
+// These values are stored as strings in the database
+// ============================================
+
+// DataSource: NEPSE, YAHOO, MANUAL, API, CALCULATED
+// Sector: BANKING, HYDRO, INSURANCE, MANUFACTURING, TRADING, INVESTMENT, HOTEL, DEVELOPMENT_BANK, FINANCE, LIFE_INSURANCE, MUTUAL_FUND, OTHERS
+// TrendDirection: BULLISH, BEARISH, NEUTRAL, VOLATILE
+// AlertType: PRICE_ABOVE, PRICE_BELOW, PERCENT_CHANGE, VOLUME_SPIKE, INDICATOR_SIGNAL
+// AlertStatus: ACTIVE, TRIGGERED, DISABLED, EXPIRED
+
+// ============================================
+// CORE MODELS
+// ============================================
+
+model AppSetting {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  autoSaveInterval Int      @default(300)
+  maxDataAgeDays   Int      @default(7)
+  backupEnabled    Boolean  @default(true)
+  chartStyle       String   @default("seaborn-v0_8")
+  defaultPeriod    String   @default("1y")
+  maxWatchlistSize Int      @default(50)
+  logLevel         String   @default("INFO")
+  refreshInterval  Int      @default(300)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// Stock master data - company information
+model Stock {
+  id          String   @id @default(cuid())
+  symbol      String   @unique @db.VarChar(20)
+  name        String   @db.VarChar(200)
+  fullName    String?  @db.VarChar(500)
+  sector      String   @default("OTHERS") @db.VarChar(50)
+  
+  // Corporate info
+  listedShares    BigInt?
+  paidUpCapital   Float?
+  marketCap       Float?
+  
+  // Status
+  isActive        Boolean  @default(true)
+  isListed        Boolean  @default(true)
+  listedDate      DateTime?
+  
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  priceHistory    StockPrice[]
+  indicators      TechnicalIndicator[]
+  trends          MarketTrend[]
+  news            StockNews[]
+  watchlistItems  WatchlistItem[]
+  priceAlerts     PriceAlert[]
+  portfolioHoldings PortfolioHolding[]
+  
+  @@index([symbol])
+  @@index([sector])
+  @@index([isActive])
+  @@map("stocks")
+}
+
+// Daily OHLCV trading data
+model StockPrice {
+  id          String      @id @default(cuid())
+  stockId     String
+  stock       Stock       @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  
+  // OHLCV data
+  tradeDate   DateTime    @db.Date
+  open        Float
+  high        Float
+  low         Float
+  close       Float
+  volume      BigInt      @default(0)
+  
+  // Additional data
+  turnover    Float?       // Turnover amount
+  trades      Int?         // Number of trades
+  
+  // Source tracking
+  source      String  @default("NEPSE") @db.VarChar(20)
+  
+  // Metadata
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  // Calculated fields (can be computed)
+  change      Float?       // close - previousClose
+  changePercent Float?     // (change / previousClose) * 100
+  
+  @@unique([stockId, tradeDate, source])
+  @@index([stockId, tradeDate(sort: Desc)])
+  @@index([tradeDate])
+  @@index([source])
+  @@map("stock_prices")
+}
+
+// Technical indicators calculated from price data
+model TechnicalIndicator {
+  id          String    @id @default(cuid())
+  stockId     String
+  stock       Stock     @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  
+  // Date of calculation
+  calcDate    DateTime  @db.Date
+  
+  // RSI (Relative Strength Index)
+  rsi14       Float?
+  rsi7        Float?
+  rsi21       Float?
+  
+  // Moving Averages
+  sma20       Float?
+  sma50       Float?
+  sma200      Float?
+  ema12       Float?
+  ema26       Float?
+  
+  // MACD
+  macdLine    Float?
+  macdSignal  Float?
+  macdHistogram Float?
+  
+  // Bollinger Bands
+  bbUpper     Float?
+  bbMiddle    Float?
+  bbLower     Float?
+  bbWidth     Float?
+  
+  // Stochastic
+  stochK      Float?
+  stochD      Float?
+  
+  // Williams %R
+  williamsR   Float?
+  
+  // Volume indicators
+  volumeSma20 BigInt?
+  obv         Float?     // On Balance Volume
+  
+  // Signals generated
+  signals     String? @db.NVarChar(Max)     // Array of signal objects (JSON)
+  
+  // Metadata
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@unique([stockId, calcDate])
+  @@index([stockId, calcDate(sort: Desc)])
+  @@map("technical_indicators")
+}
+
+// Market trend analysis
+model MarketTrend {
+  id              String          @id @default(cuid())
+  stockId         String
+  stock           Stock           @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  
+  // Analysis period
+  periodStart     DateTime        @db.Date
+  periodEnd       DateTime        @db.Date
+  periodType      String          @db.VarChar(20) // daily, weekly, monthly
+  
+  // Trend direction
+  direction       String          @default("NEUTRAL") @db.VarChar(20)
+  strength        Float?          // 0-100 trend strength
+  confidence      Float?          // 0-100 confidence level
+  
+  // Price movement
+  startPrice      Float
+  endPrice        Float
+  highPrice       Float
+  lowPrice        Float
+  priceChange     Float
+  priceChangePct  Float
+  
+  // Volume analysis
+  avgVolume       BigInt?
+  volumeTrend     String?         @db.VarChar(20) // increasing, decreasing, stable
+  
+  // Support/Resistance
+  supportLevel    Float?
+  resistanceLevel Float?
+  
+  // AI/ML predictions
+  prediction      String?         @db.NVarChar(Max)          // ML model predictions (JSON)
+  sentiment       String?         @db.VarChar(20) // bullish, bearish, neutral
+  
+  // Metadata
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@index([stockId, periodEnd(sort: Desc)])
+  @@index([direction])
+  @@map("market_trends")
+}
+
+// User management
+model User {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  name        String?
+  
+  // Auth
+  passwordHash String?   @db.VarChar(255)
+  isActive     Boolean  @default(true)
+  
+  // Relations
+  preferences  UserPreference?
+  portfolios   Portfolio[]
+   watchlists   Watchlist[]
+   alerts       PriceAlert[]
+   orders       Order[]
+   portfolioSnapshots PortfolioSnapshot[]
+   activities     UserActivity[]
+   refreshTokens  RefreshToken[]
+  
+  // Metadata
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLogin   DateTime?
+  
+  // Security Hardening
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  
+  // MFA
+  mfaEnabled          Boolean   @default(false)
+  mfaSecret           String?   @db.NVarChar(Max)
+  mfaBackupCodes      String?   @db.NVarChar(Max) // JSON array
+  
+  // Password Recovery
+  resetPasswordToken   String?   @unique @db.VarChar(255)
+  resetPasswordExpires DateTime?
+  
+  @@map("users")
+}
+
+// Session tokens for rotation and revocation
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique @db.VarChar(500)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+  
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// User preferences and settings
+model UserPreference {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Display settings
+  theme           String    @default("light") @db.VarChar(20)
+  chartStyle      String    @default("seaborn-v0_8")
+  defaultPeriod   String    @default("1y")
+  currency        String    @default("NPR")
+  
+  // Data settings
+  autoRefresh     Boolean   @default(true)
+  refreshInterval Int       @default(300)
+  dataSource      String     @default("NEPSE") @db.VarChar(20)
+  
+  // Notification settings
+  emailAlerts     Boolean   @default(true)
+  pushAlerts      Boolean   @default(false)
+  
+  // Trading preferences
+  defaultIndicators String?   @db.NVarChar(Max) // Array of default indicator names (JSON)
+  riskProfile     String?   @db.VarChar(20) // conservative, moderate, aggressive
+  
+  // Metadata
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("user_preferences")
+}
+
+// Portfolio model - enhanced with user relation
+model Portfolio {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String    @db.VarChar(100)
+  description String?   @db.Text
+  isDefault   Boolean   @default(false)
+  
+  // Relations
+  holdings    PortfolioHolding[]
+  
+  // Performance tracking
+  totalInvestment Float?
+  currentValue    Float?
+  totalReturn     Float?
+  totalReturnPct  Float?
+  
+  // Metadata
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([userId])
+  @@map("portfolios")
+}
+
+// Portfolio holdings - linked to stock master
+model PortfolioHolding {
+  id          String    @id @default(cuid())
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  
+  stockId     String
+  stock       Stock     @relation(fields: [stockId], references: [id])
+  
+  shares      Float
+  buyPrice    Float
+  buyDate     DateTime?
+  
+  currentPrice Float?
+  currentValue Float?
+  gainLoss     Float?
+  gainLossPct  Float?
+  
+  notes        String?   @db.Text
+  lastUpdated  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  @@unique([portfolioId, stockId])
+  @@index([portfolioId])
+  @@index([stockId])
+  @@map("portfolio_holdings")
+}
+
+// Watchlist model - user can have multiple watchlists
+model Watchlist {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String    @db.VarChar(100)
+  description String?   @db.Text
+  isDefault   Boolean   @default(false)
+  
+  // Relations
+  items       WatchlistItem[]
+  
+  // Metadata
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([userId])
+  @@map("watchlists")
+}
+
+// Watchlist items - linked to stock master
+model WatchlistItem {
+  id          String    @id @default(cuid())
+  watchlistId String
+  watchlist   Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  
+  stockId     String
+  stock       Stock     @relation(fields: [stockId], references: [id])
+  
+  notes       String?   @db.Text
+  alertPrice  Float?    // Price level for notification
+  
+  // Display order
+  sortOrder   Int       @default(0)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@unique([watchlistId, stockId])
+  @@index([watchlistId])
+  @@index([stockId])
+  @@map("watchlist_items")
+}
+
+// Price alerts with enhanced features
+model PriceAlert {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  stockId     String
+  stock       Stock       @relation(fields: [stockId], references: [id])
+  
+  alertType   String
+  targetValue Float
+  
+  // For percentage change alerts
+  referencePrice Float?
+  
+  status      String      @default("ACTIVE") @db.VarChar(20)
+  triggeredAt DateTime?
+  triggeredPrice Float?
+  
+  // Notification settings
+  notifyEmail Boolean     @default(true)
+  notifyPush  Boolean     @default(false)
+  
+  // Expiry
+  expiresAt   DateTime?
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  @@index([userId, status])
+  @@index([stockId, status])
+  @@map("price_alerts")
+}
+
+// Stock news and sentiment
+model StockNews {
+  id          String    @id @default(cuid())
+  stockId     String
+  stock       Stock     @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  
+  title       String    @db.VarChar(500)
+  content     String?   @db.Text
+  source      String    @db.VarChar(200)
+  url         String?   @db.VarChar(1000)
+  
+  // Sentiment analysis
+  sentiment   String?   @db.VarChar(20) // positive, negative, neutral
+  sentimentScore Float?
+  
+  publishDate DateTime
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([stockId, publishDate(sort: Desc)])
+  @@map("stock_news")
+}
+
+// Legacy PriceSnapshot for backward compatibility
+// Can be migrated to StockPrice model
+model PriceSnapshot {
+  id        String     @id @default(cuid())
+  symbol    String     @db.VarChar(20)
+  tradeDate DateTime   @db.Date
+  open      Float
+  high      Float
+  low       Float
+  close     Float
+  volume    Float      @default(0)
+  source    String     @default("MANUAL") @db.VarChar(20)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([symbol, tradeDate, source])
+  @@index([symbol, tradeDate(sort: Desc)])
+  @@map("price_snapshots")
+}
+
+// Product catalog for investment tools and resources
+model Product {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(200)
+  description String?  @db.Text
+  price       Float
+  imageUrl    String?  @db.VarChar(1000)
+  category    String   @db.VarChar(50)
+  stock       Int      @default(0)
+  rating      Float?   @default(0)
+  isActive    Boolean  @default(true)
+  
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Distribution Relations
+  orderItems          OrderItem[]
+  inventoryLogs       InventoryTransaction[]
+  activities          UserActivity[]
+
+  @@index([name])
+  @@map("products")
+}
+
+// --- Distribution & Marketing Models ---
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  status          String      @default("PENDING") @db.VarChar(20)
+  totalAmount     Float
+  currency        String      @default("NPR")
+  
+  // Shipping info
+  shippingAddress String?     @db.NVarChar(Max)
+  
+  // Relations
+  items           OrderItem[]
+  shipment        Shipment?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([userId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float    // Price at the time of purchase
+  
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model Shipment {
+  id              String    @id @default(cuid())
+  orderId         String    @unique
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  trackingNumber  String?   @db.VarChar(100)
+  carrier         String?   @db.VarChar(50)
+  status          String    @default("PREPARING") // PREPARING, IN_TRANSIT, DELIVERED
+  estimatedArrival DateTime?
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("shipments")
+}
+
+model InventoryTransaction {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  delta       Int      // Positive for restock, negative for sale
+  reason      String   @db.VarChar(50) // SALE, RESTOCK, RETURN, ADJUSTMENT
+  referenceId String?  // Optional link to Order ID
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([productId])
+  @@map("inventory_transactions")
+}
+
+model UserActivity {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
+  action      String   @db.VarChar(50) // VIEW, SEARCH, CLICK, ADD_TO_CART
+  metadata    String?  @db.NVarChar(Max) // JSON metadata
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId, action])
+  @@index([productId])
+  @@map("user_activities")
+}
+
+// Historical portfolio performance snapshots
+model PortfolioSnapshot {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  totalValue      Float
+  totalInvestment Float
+  totalGainLoss   Float
+  
+  snapshotDate    DateTime @default(now())
+  
+  @@unique([userId, snapshotDate])
+  @@index([userId])
+  @@map("portfolio_snapshots")
+}

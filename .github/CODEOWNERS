@@ -1,0 +1,20 @@
+# Global owners
+* @getuser-shivam
+
+# Backend code
+/backend/ @getuser-shivam
+/backend/prisma/ @getuser-shivam
+
+# Dart client
+/nepse_analysis/ @getuser-shivam
+/nepse_analysis/lib/ @getuser-shivam
+
+# CI/CD workflows
+/.github/workflows/ @getuser-shivam
+
+# Documentation
+/docs/ @getuser-shivam
+*.md @getuser-shivam
+
+# Flutter app
+/nepse_app/ @getuser-shivam

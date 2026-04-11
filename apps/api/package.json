@@ -1,0 +1,41 @@
+{
+  "name": "nepse-analysis-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "check": "node --check src/app.js && node --check src/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "seed": "node prisma/seed.js",
+    "build:web": "npm run build:docs && npm run build:dashboard",
+    "build:docs": "mkdir -p ../_site/api-docs && cp -r src/routes ../_site/api-docs/ 2>/dev/null || echo 'No API docs to copy'",
+    "build:dashboard": "node scripts/build-dashboard.js",
+    "predeploy": "npm run build:web",
+    "deploy": "gh-pages -d ../_site -b gh-pages -m 'Deploy to GitHub Pages [ci skip]'",
+    "deploy:staging": "gh-pages -d ../_site -b gh-pages -e staging -m 'Deploy to staging [ci skip]'",
+    "clean": "gh-pages-clean"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.8.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "groq-sdk": "^1.1.2",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.3.0",
+    "gh-pages": "^6.1.1",
+    "jest": "^30.3.0",
+    "prisma": "^6.8.2",
+    "supertest": "^7.2.2"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}

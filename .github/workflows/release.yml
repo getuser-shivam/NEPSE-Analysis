@@ -1,0 +1,335 @@
+name: Release Management
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.2.3)'
+        required: true
+      prerelease:
+        description: 'Is this a prerelease?'
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '20'
+  DART_VERSION: '3.2'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ============================================
+  # VALIDATE RELEASE
+  # ============================================
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            echo "Expected: X.Y.Z or X.Y.Z-label"
+            exit 1
+          fi
+          
+          echo "✅ Version format valid: $VERSION"
+
+      - name: Check changelog
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          VERSION=${VERSION#v}
+          
+          if ! grep -q "$VERSION" CHANGELOG.md; then
+            echo "⚠️ Version $VERSION not found in CHANGELOG.md"
+            echo "Please update CHANGELOG.md before releasing"
+            exit 1
+          fi
+          
+          echo "✅ Changelog updated for version $VERSION"
+
+      - name: Check all CI passed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: runs } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: context.ref.replace('refs/tags/', '').replace('refs/heads/', ''),
+              per_page: 10
+            });
+            
+            const recentRuns = runs.workflow_runs.filter(run => 
+              run.created_at > new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+            );
+            
+            const failedRuns = recentRuns.filter(run => run.conclusion === 'failure');
+            
+            if (failedRuns.length > 0) {
+              console.log('Recent failed runs:', failedRuns.map(r => r.name));
+              // Warning only, don't block release
+              console.log('⚠️ Some recent CI runs failed');
+            }
+
+  # ============================================
+  # BUILD RELEASE ARTIFACTS
+  # ============================================
+  build-artifacts:
+    name: Build Release Artifacts
+    runs-on: ${{ matrix.os }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+          - os: windows-latest
+            target: windows
+          - os: macos-latest
+            target: macos
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ env.DART_VERSION }}
+
+      - name: Build Dart executable
+        run: |
+          cd nepse_analysis
+          dart pub get
+          dart compile exe bin/nepse_analysis.dart -o build/nepse_analysis_${{ matrix.target }}
+        continue-on-error: true
+
+      - name: Build Node.js package
+        run: |
+          cd backend
+          npm ci
+          npm run build || true
+          npm pack
+          mv *.tgz ../build/
+
+      - name: Create archives
+        run: |
+          mkdir -p release
+          
+          if [ "${{ matrix.target }}" = "windows" ]; then
+            7z a release/nepse-analysis-${{ matrix.target }}.zip build/
+          else
+            tar -czf release/nepse-analysis-${{ matrix.target }}.tar.gz -C build .
+          fi
+        shell: bash
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: release/
+
+  # ============================================
+  # BUILD DOCKER IMAGES
+  # ============================================
+  build-docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: validate
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+        continue-on-error: true
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+            ${{ secrets.DOCKER_USERNAME }}/nepse-analysis
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=ref,event=branch
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  # ============================================
+  # CREATE RELEASE
+  # ============================================
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-artifacts, build-docker]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v4
+        with:
+          configuration: .github/changelog-config.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          pattern: release-*
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.changelog }}
+          prerelease: ${{ github.event.inputs.prerelease || contains(github.ref_name, '-') }}
+          draft: false
+          files: |
+            artifacts/**/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update major version tag
+        if: ${{ !contains(github.ref_name, '-') }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          MAJOR=${VERSION%%.*}
+          
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          
+          git tag -fa "v$MAJOR" -m "Update major version tag"
+          git push origin "v$MAJOR" --force
+
+  # ============================================
+  # DEPLOY TO REGISTRY
+  # ============================================
+  deploy-registry:
+    name: Deploy to Package Registry
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: 'https://npm.pkg.github.com'
+
+      - name: Publish to GitHub Packages
+        run: |
+          cd backend
+          npm publish --registry=https://npm.pkg.github.com
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Publish to pub.dev (dry run)
+        run: |
+          cd nepse_analysis
+          dart pub publish --dry-run
+        continue-on-error: true
+
+  # ============================================
+  # NOTIFY STAKEHOLDERS
+  # ============================================
+  notify:
+    name: Notify Stakeholders
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    steps:
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#releases'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+        continue-on-error: true
+
+      - name: Create deployment issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚀 Release ${context.ref_name} deployed`,
+              body: `## Release ${context.ref_name} has been published
+              
+              - **Version:** ${context.ref_name}
+              - **Date:** ${new Date().toISOString()}
+              - **URL:** https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${context.ref_name}
+              
+              ### Deployment Checklist
+              - [ ] Smoke tests passed
+              - [ ] Monitoring alerts configured
+              - [ ] Rollback plan documented
+              
+              cc: @getuser-shivam`,
+              labels: ['release', 'deployed']
+            });

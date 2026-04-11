@@ -1,0 +1,15 @@
+body {
+  background-color: #011627;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+#loading-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  color: white;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}

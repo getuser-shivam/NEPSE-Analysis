@@ -1,0 +1,135 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Setup Wireless Debugging",
+            "type": "shell",
+            "command": "${workspaceFolder}/scripts/setup-debugging.sh",
+            "windows": {
+                "command": "${workspaceFolder}/scripts/setup-debugging.ps1"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": true
+            },
+            "group": "build"
+        },
+        {
+            "label": "Connect Wireless Device",
+            "type": "shell",
+            "command": "adb connect ${input:deviceIp}:5555",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Disconnect Wireless Device",
+            "type": "shell",
+            "command": "adb disconnect ${input:deviceIp}:5555",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "List Connected Devices",
+            "type": "shell",
+            "command": "adb devices -l",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Flutter: Get Dependencies",
+            "type": "shell",
+            "command": "flutter pub get",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Flutter: Clean Build",
+            "type": "shell",
+            "command": "flutter clean",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Flutter: Build APK (Debug)",
+            "type": "shell",
+            "command": "flutter build apk --debug",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Flutter: Build APK (Release)",
+            "type": "shell",
+            "command": "flutter build apk --release",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "group": "build"
+        },
+        {
+            "label": "ADB: View Logs",
+            "type": "shell",
+            "command": "adb logcat -s flutter",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": false
+            },
+            "isBackground": true
+        },
+        {
+            "label": "ADB: Screenshot",
+            "type": "shell",
+            "command": "adb shell screencap -p /sdcard/screenshot.png && adb pull /sdcard/screenshot.png ${workspaceFolder}/screenshots/",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "ADB: Restart ADB Server",
+            "type": "shell",
+            "command": "adb kill-server && adb start-server",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        }
+    ],
+    "inputs": [
+        {
+            "id": "deviceIp",
+            "description": "Device IP Address",
+            "default": "192.168.1.100",
+            "type": "promptString"
+        }
+    ]
+}

@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced backup system with metadata and rotation
 
 ### Changed
+- **Project Structure**: Consolidated core Python analysis tools into the `tools/` directory.
+- **Architecture**: Expanded to a multi-stack system including a Node.js backend, Flutter mobile app, and Dart web client.
 - Improved cache management with memory usage tracking
 - Enhanced error handling throughout the application
 - Updated documentation with comprehensive guides
