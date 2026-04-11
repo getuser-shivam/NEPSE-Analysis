@@ -2,7 +2,7 @@ name: NEPSE Analysis CI/CD
 
 on:
   push:
-    branches: [main, master]
+    branches: [master]
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -279,6 +279,11 @@ jobs:
           path: _site/
           retention-days: 5
 
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site/
+
   # ============================================
   # DEPLOY TO GITHUB PAGES
   # ============================================
@@ -313,13 +318,8 @@ jobs:
           echo "✅ Build output verified"
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./_site
-          publish_branch: gh-pages
-          commit_message: "Deploy to GitHub Pages: ${{ github.event.head_commit.message }}"
-          cname: ""  # Leave empty for default github.io domain, or set custom domain
+        id: deployment
+        uses: actions/deploy-pages@v4
 
       - name: Verify deployment
         run: |
@@ -336,7 +336,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: context.sha,
-              body: `🚀 Successfully deployed to GitHub Pages!\n\n🔗 View at: ${url}\n\n⏳ Note: Changes may take 2-5 minutes to propagate across CDN.`
+              body: `🚀 Successfully deployed to GitHub Pages via Actions Native!\n\n🔗 View at: ${url}\n\n⏳ Note: Changes should reflect immediately.`
             });
 
   # ============================================
