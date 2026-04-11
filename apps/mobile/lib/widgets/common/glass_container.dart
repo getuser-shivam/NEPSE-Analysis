@@ -28,7 +28,7 @@ class GlassContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = borderRadius ?? BorderRadius.circular(24);
-    
+
     return ClipRRect(
       borderRadius: radius,
       child: BackdropFilter(
@@ -38,15 +38,19 @@ class GlassContainer extends StatelessWidget {
           margin: margin,
           decoration: BoxDecoration(
             borderRadius: radius,
-            border: border ?? Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            border:
+                border ??
+                Border.all(color: Colors.white.withValues(alpha: 0.1)),
             boxShadow: boxShadow,
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: gradientColors ?? [
-                Colors.white.withValues(alpha: opacity),
-                Colors.white.withValues(alpha: opacity * 0.5),
-              ],
+              colors:
+                  gradientColors ??
+                  [
+                    Colors.white.withValues(alpha: opacity),
+                    Colors.white.withValues(alpha: opacity * 0.5),
+                  ],
             ),
           ),
           child: child,

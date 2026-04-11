@@ -36,7 +36,10 @@ class PerformanceLineChart extends StatelessWidget {
                   children: [
                     TextSpan(
                       text: 'NPR ${spot.y.toStringAsFixed(0)}',
-                      style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 );
@@ -72,7 +75,8 @@ class PerformanceLineChart extends StatelessWidget {
   }
 
   double _getMinY() {
-    return snapshots.map((s) => s.totalValue).reduce((a, b) => a < b ? a : b) * 0.95;
+    return snapshots.map((s) => s.totalValue).reduce((a, b) => a < b ? a : b) *
+        0.95;
   }
 
   double _getMaxY() {

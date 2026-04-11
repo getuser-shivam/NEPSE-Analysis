@@ -15,7 +15,8 @@ class PortfolioInsight with _$PortfolioInsight {
     required DateTime generatedAt,
   }) = _PortfolioInsight;
 
-  factory PortfolioInsight.fromJson(Map<String, dynamic> json) => _$PortfolioInsightFromJson(json);
+  factory PortfolioInsight.fromJson(Map<String, dynamic> json) =>
+      _$PortfolioInsightFromJson(json);
 }
 
 @freezed
@@ -26,7 +27,8 @@ class SectorAllocation with _$SectorAllocation {
     required double percentage,
   }) = _SectorAllocation;
 
-  factory SectorAllocation.fromJson(Map<String, dynamic> json) => _$SectorAllocationFromJson(json);
+  factory SectorAllocation.fromJson(Map<String, dynamic> json) =>
+      _$SectorAllocationFromJson(json);
 }
 
 @freezed
@@ -39,5 +41,6 @@ class PortfolioSnapshotModel with _$PortfolioSnapshotModel {
     required DateTime snapshotDate,
   }) = _PortfolioSnapshotModel;
 
-  factory PortfolioSnapshotModel.fromJson(Map<String, dynamic> json) => _$PortfolioSnapshotModelFromJson(json);
+  factory PortfolioSnapshotModel.fromJson(Map<String, dynamic> json) =>
+      _$PortfolioSnapshotModelFromJson(json);
 }

@@ -7,11 +7,7 @@ class ProductCard extends StatelessWidget {
   final Product product;
   final VoidCallback? onTap;
 
-  const ProductCard({
-    required this.product,
-    this.onTap,
-    super.key,
-  });
+  const ProductCard({required this.product, this.onTap, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +21,9 @@ class ProductCard extends StatelessWidget {
           children: [
             // Image Placeholder/Header
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
                 child: Container(
@@ -50,7 +48,7 @@ class ProductCard extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -88,14 +86,21 @@ class ProductCard extends StatelessWidget {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.secondary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.star, size: 12, color: Colors.amber),
+                            const Icon(
+                              Icons.star,
+                              size: 12,
+                              color: Colors.amber,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               product.rating.toString(),

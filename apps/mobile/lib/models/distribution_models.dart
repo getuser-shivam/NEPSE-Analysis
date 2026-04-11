@@ -30,7 +30,8 @@ class OrderItem with _$OrderItem {
     required double price,
   }) = _OrderItem;
 
-  factory OrderItem.fromJson(Map<String, dynamic> json) => _$OrderItemFromJson(json);
+  factory OrderItem.fromJson(Map<String, dynamic> json) =>
+      _$OrderItemFromJson(json);
 }
 
 @freezed
@@ -45,7 +46,8 @@ class Shipment with _$Shipment {
     DateTime? deliveredAt,
   }) = _Shipment;
 
-  factory Shipment.fromJson(Map<String, dynamic> json) => _$ShipmentFromJson(json);
+  factory Shipment.fromJson(Map<String, dynamic> json) =>
+      _$ShipmentFromJson(json);
 }
 
 @freezed
@@ -57,5 +59,6 @@ class InventoryForecast with _$InventoryForecast {
     required bool belowThreshold,
   }) = _InventoryForecast;
 
-  factory InventoryForecast.fromJson(Map<String, dynamic> json) => _$InventoryForecastFromJson(json);
+  factory InventoryForecast.fromJson(Map<String, dynamic> json) =>
+      _$InventoryForecastFromJson(json);
 }

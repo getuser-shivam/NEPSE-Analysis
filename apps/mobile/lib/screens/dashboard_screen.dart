@@ -48,7 +48,11 @@ class DashboardScreen extends ConsumerWidget {
         titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
         background: Opacity(
           opacity: 0.1,
-          child: Icon(Icons.auto_graph_rounded, size: 200, color: AppColors.accent),
+          child: Icon(
+            Icons.auto_graph_rounded,
+            size: 200,
+            color: AppColors.accent,
+          ),
         ),
       ),
     );
@@ -67,14 +71,21 @@ class DashboardScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('NEPSE Index', style: TextStyle(color: AppColors.textSecondary)),
+              const Text(
+                'NEPSE Index',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
               StatusPill(label: '+1.24%', color: AppColors.positive),
             ],
           ),
           const SizedBox(height: 8),
           const Text(
             '2,145.67',
-            style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
           ),
           const SizedBox(height: 12),
           const Text(
@@ -94,8 +105,21 @@ class DashboardScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             child: const Column(
               children: [
-                Text('Advancing', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                Text('142', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.positive)),
+                Text(
+                  'Advancing',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Text(
+                  '142',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.positive,
+                  ),
+                ),
               ],
             ),
           ),
@@ -106,8 +130,21 @@ class DashboardScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             child: const Column(
               children: [
-                Text('Declining', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                Text('85', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.negative)),
+                Text(
+                  'Declining',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Text(
+                  '85',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.negative,
+                  ),
+                ),
               ],
             ),
           ),
@@ -123,17 +160,33 @@ class DashboardScreen extends ConsumerWidget {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: 3,
-        separatorBuilder: (_, __) => Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
+        separatorBuilder: (_, __) =>
+            Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
         itemBuilder: (context, index) {
-          final items = ['NABIL Order Filled', 'Watchlist: upper hit alert', 'New Catalog Item: ADLB'];
+          final items = [
+            'NABIL Order Filled',
+            'Watchlist: upper hit alert',
+            'New Catalog Item: ADLB',
+          ];
           return ListTile(
             leading: CircleAvatar(
               backgroundColor: AppColors.accent.withValues(alpha: 0.1),
-              child: Icon(Icons.notifications_active_rounded, size: 18, color: AppColors.accent),
+              child: Icon(
+                Icons.notifications_active_rounded,
+                size: 18,
+                color: AppColors.accent,
+              ),
             ),
             title: Text(items[index], style: const TextStyle(fontSize: 14)),
-            subtitle: const Text('15 minutes ago', style: TextStyle(fontSize: 12)),
-            trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
+            subtitle: const Text(
+              '15 minutes ago',
+              style: TextStyle(fontSize: 12),
+            ),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: AppColors.textMuted,
+            ),
           );
         },
       ),

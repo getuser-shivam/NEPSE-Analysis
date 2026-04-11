@@ -14,7 +14,8 @@ class Watchlist with _$Watchlist {
     DateTime? createdAt,
   }) = _Watchlist;
 
-  factory Watchlist.fromJson(Map<String, dynamic> json) => _$WatchlistFromJson(json);
+  factory Watchlist.fromJson(Map<String, dynamic> json) =>
+      _$WatchlistFromJson(json);
 }
 
 @freezed
@@ -28,7 +29,8 @@ class WatchlistItem with _$WatchlistItem {
     StockSummary? stock,
   }) = _WatchlistItem;
 
-  factory WatchlistItem.fromJson(Map<String, dynamic> json) => _$WatchlistItemFromJson(json);
+  factory WatchlistItem.fromJson(Map<String, dynamic> json) =>
+      _$WatchlistItemFromJson(json);
 }
 
 @freezed
@@ -41,7 +43,8 @@ class StockSummary with _$StockSummary {
     double? changePercent,
   }) = _StockSummary;
 
-  factory StockSummary.fromJson(Map<String, dynamic> json) => _$StockSummaryFromJson(json);
+  factory StockSummary.fromJson(Map<String, dynamic> json) =>
+      _$StockSummaryFromJson(json);
 }
 
 @freezed
@@ -56,5 +59,6 @@ class PriceAlert with _$PriceAlert {
     DateTime? triggeredAt,
   }) = _PriceAlert;
 
-  factory PriceAlert.fromJson(Map<String, dynamic> json) => _$PriceAlertFromJson(json);
+  factory PriceAlert.fromJson(Map<String, dynamic> json) =>
+      _$PriceAlertFromJson(json);
 }

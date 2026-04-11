@@ -50,10 +50,8 @@ class Portfolio {
   final String name;
 
   /// Creates a new [Portfolio] instance.
-  Portfolio({
-    required this.name,
-    Map<String, PortfolioHolding>? holdings,
-  }) : holdings = holdings ?? {};
+  Portfolio({required this.name, Map<String, PortfolioHolding>? holdings})
+    : holdings = holdings ?? {};
 
   /// Total investment across all holdings.
   double get totalInvestment =>

@@ -40,27 +40,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.lock_person_outlined, size: 64, color: AppColors.accent),
+                  const Icon(
+                    Icons.lock_person_outlined,
+                    size: 64,
+                    color: AppColors.accent,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Secure Login',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  const Text('Enter your credentials to access your NEPSE strategy.'),
+                  const Text(
+                    'Enter your credentials to access your NEPSE strategy.',
+                  ),
                   const SizedBox(height: 32),
-                  
+
                   if (!authState.mfaRequired) ...[
-                    _buildTextField(_emailController, 'Email', Icons.email_outlined),
+                    _buildTextField(
+                      _emailController,
+                      'Email',
+                      Icons.email_outlined,
+                    ),
                     const SizedBox(height: 16),
-                    _buildTextField(_passwordController, 'Password', Icons.lock_outline, obscureText: true),
+                    _buildTextField(
+                      _passwordController,
+                      'Password',
+                      Icons.lock_outline,
+                      obscureText: true,
+                    ),
                   ] else ...[
                     const Text(
                       'MFA Required',
-                      style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
-                    _buildTextField(_mfaController, '6-digit code', Icons.security),
+                    _buildTextField(
+                      _mfaController,
+                      '6-digit code',
+                      Icons.security,
+                    ),
                   ],
 
                   if (authState.error != null) ...[
@@ -81,11 +105,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      child: authState.isLoading 
+                      child: authState.isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : Text(authState.mfaRequired ? 'Verify MFA' : 'Login'),
+                          : Text(
+                              authState.mfaRequired ? 'Verify MFA' : 'Login',
+                            ),
                     ),
                   ),
 
@@ -94,9 +122,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+                          MaterialPageRoute(
+                            builder: (context) => const ForgotPasswordScreen(),
+                          ),
                         );
-                      }, 
+                      },
                       child: const Text('Forgot Password?'),
                     ),
                     const Divider(),
@@ -104,9 +134,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterScreen(),
+                          ),
                         );
-                      }, 
+                      },
                       child: const Text('New user? Create an account'),
                     ),
                   ],
@@ -119,7 +151,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool obscureText = false}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    bool obscureText = false,
+  }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
@@ -136,10 +173,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final password = _passwordController.text.trim();
     final mfaCode = _mfaController.text.trim();
 
-    ref.read(authProvider.notifier).login(
-      email, 
-      password, 
-      mfaCode: mfaCode.isNotEmpty ? mfaCode : null
-    );
+    ref
+        .read(authProvider.notifier)
+        .login(email, password, mfaCode: mfaCode.isNotEmpty ? mfaCode : null);
   }
 }

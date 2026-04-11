@@ -37,7 +37,7 @@ A comprehensive stock analysis application for the Nepal Stock Exchange (NEPSE) 
 - **Node.js Backend**: Express API with Prisma ORM for data persistence
 - **Dart Client**: Type-safe API client for Flutter integration
 - **Dashboard API**: Single aggregated payload endpoint for UI consumption
-- **Database Support**: SQLite (default) or PostgreSQL/MySQL
+- **Database System**: Fully integrated with MySQL for robust, enterprise-grade data management
 
 ## � CI/CD Pipeline
 

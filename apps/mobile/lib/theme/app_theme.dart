@@ -119,7 +119,10 @@ class AppTheme {
     ],
   );
 
-  static BoxDecoration glassDecoration({double blur = 12, double opacity = 0.1}) {
+  static BoxDecoration glassDecoration({
+    double blur = 12,
+    double opacity = 0.1,
+  }) {
     return BoxDecoration(
       color: Colors.white.withValues(alpha: opacity),
       borderRadius: BorderRadius.circular(24),

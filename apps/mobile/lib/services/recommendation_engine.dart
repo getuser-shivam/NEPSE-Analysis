@@ -1,5 +1,5 @@
 /// Recommendation Engine
-/// 
+///
 /// Generates personalized investment recommendations based on technical analysis,
 /// AI insights, and user risk preferences.
 library nepse_analysis_recommendation_engine;
@@ -9,19 +9,10 @@ import '../models/stock.dart';
 import 'analysis_engine.dart';
 
 /// User risk profile levels
-enum RiskProfile {
-  conservative,
-  moderate,
-  aggressive,
-}
+enum RiskProfile { conservative, moderate, aggressive }
 
 /// Investment recommendation action
-enum RecommendationAction {
-  buy,
-  sell,
-  hold,
-  watch,
-}
+enum RecommendationAction { buy, sell, hold, watch }
 
 /// Represents a personalized investment recommendation
 class InvestmentRecommendation {
@@ -78,21 +69,17 @@ class InvestmentRecommendation {
 }
 
 /// Risk level classification
-enum RiskLevel {
-  low,
-  medium,
-  high,
-}
+enum RiskLevel { low, medium, high }
 
 /// Recommendation engine for generating personalized investment advice
 class RecommendationEngine {
   final AnalysisEngine _analysisEngine;
 
   RecommendationEngine({AnalysisEngine? analysisEngine})
-      : _analysisEngine = analysisEngine ?? AnalysisEngine();
+    : _analysisEngine = analysisEngine ?? AnalysisEngine();
 
   /// Generates personalized recommendation for a stock
-  /// 
+  ///
   /// [stock] - Stock to analyze
   /// [prices] - Historical prices
   /// [highs] - Historical highs
@@ -143,11 +130,7 @@ class RecommendationEngine {
     );
 
     // Generate rationale
-    final rationale = _generateRationale(
-      action,
-      analysis,
-      riskLevel,
-    );
+    final rationale = _generateRationale(action, analysis, riskLevel);
 
     // Extract technical factors
     final technicalFactors = _extractTechnicalFactors(analysis);
@@ -187,7 +170,9 @@ class RecommendationEngine {
     if (signal.contains('buy')) {
       if (inPortfolio) {
         // Already have it, check if should add more
-        return analysis.confidence > 0.7 ? RecommendationAction.buy : RecommendationAction.hold;
+        return analysis.confidence > 0.7
+            ? RecommendationAction.buy
+            : RecommendationAction.hold;
       }
       return RecommendationAction.buy;
     } else if (signal.contains('sell')) {
@@ -218,7 +203,8 @@ class RecommendationEngine {
       }
 
       // Stop-loss at lower Bollinger Band or 5% downside
-      if (indicators.bbLower != null && indicators.bbLower! < currentPrice * 0.95) {
+      if (indicators.bbLower != null &&
+          indicators.bbLower! < currentPrice * 0.95) {
         stopLoss = indicators.bbLower;
       } else {
         stopLoss = currentPrice * 0.95; // 5% stop-loss
@@ -273,9 +259,13 @@ class RecommendationEngine {
     // Technical analysis summary
     if (analysis.indicators.rsi14 != null) {
       if (analysis.indicators.rsi14! < 30) {
-        parts.add('RSI indicates oversold conditions (${analysis.indicators.rsi14!.toStringAsFixed(1)})');
+        parts.add(
+          'RSI indicates oversold conditions (${analysis.indicators.rsi14!.toStringAsFixed(1)})',
+        );
       } else if (analysis.indicators.rsi14! > 70) {
-        parts.add('RSI indicates overbought conditions (${analysis.indicators.rsi14!.toStringAsFixed(1)})');
+        parts.add(
+          'RSI indicates overbought conditions (${analysis.indicators.rsi14!.toStringAsFixed(1)})',
+        );
       }
     }
 
@@ -292,8 +282,11 @@ class RecommendationEngine {
     parts.add('Risk level: ${riskLevel.name}');
 
     // AI insights if available
-    if (analysis.aiAnalysis != null && analysis.aiAnalysis!.factors.isNotEmpty) {
-      parts.add('AI analysis highlights: ${analysis.aiAnalysis!.factors.take(2).join(', ')}');
+    if (analysis.aiAnalysis != null &&
+        analysis.aiAnalysis!.factors.isNotEmpty) {
+      parts.add(
+        'AI analysis highlights: ${analysis.aiAnalysis!.factors.take(2).join(', ')}',
+      );
     }
 
     return parts.join('. ') + '.';
@@ -308,17 +301,24 @@ class RecommendationEngine {
     }
 
     if (analysis.indicators.macdHistogram != null) {
-      final macdSignal = analysis.indicators.macdHistogram! > 0 ? 'Bullish' : 'Bearish';
+      final macdSignal = analysis.indicators.macdHistogram! > 0
+          ? 'Bullish'
+          : 'Bearish';
       factors.add('MACD: $macdSignal');
     }
 
-    if (analysis.indicators.sma20 != null && analysis.indicators.sma50 != null) {
-      final trend = analysis.indicators.sma20! > analysis.indicators.sma50! ? 'Uptrend' : 'Downtrend';
+    if (analysis.indicators.sma20 != null &&
+        analysis.indicators.sma50 != null) {
+      final trend = analysis.indicators.sma20! > analysis.indicators.sma50!
+          ? 'Uptrend'
+          : 'Downtrend';
       factors.add('Moving Averages: $trend');
     }
 
     if (analysis.indicators.trendStrength.abs() > 0.5) {
-      final strength = analysis.indicators.trendStrength > 0 ? 'Strong' : 'Weak';
+      final strength = analysis.indicators.trendStrength > 0
+          ? 'Strong'
+          : 'Weak';
       factors.add('Trend: $strength');
     }
 
@@ -326,7 +326,10 @@ class RecommendationEngine {
   }
 
   /// Determines appropriate time horizon
-  String _determineTimeHorizon(RecommendationAction action, RiskProfile riskProfile) {
+  String _determineTimeHorizon(
+    RecommendationAction action,
+    RiskProfile riskProfile,
+  ) {
     if (action == RecommendationAction.sell) {
       return 'Immediate to 1 week';
     }

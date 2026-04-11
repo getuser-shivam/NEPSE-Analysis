@@ -34,7 +34,11 @@ class _MfaSetupScreenState extends ConsumerState<MfaSetupScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.qr_code_2_outlined, size: 80, color: AppColors.primary),
+                const Icon(
+                  Icons.qr_code_2_outlined,
+                  size: 80,
+                  color: AppColors.primary,
+                ),
                 const SizedBox(height: 24),
                 const Text(
                   'Enable Multi-Factor Authentication',
@@ -55,7 +59,10 @@ class _MfaSetupScreenState extends ConsumerState<MfaSetupScreen> {
                 else ...[
                   SelectableText(
                     'Secret Key: ${_setupData!['secret']}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.accent),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.accent,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   const Text('Enter the code from your app below to verify.'),
@@ -63,7 +70,9 @@ class _MfaSetupScreenState extends ConsumerState<MfaSetupScreen> {
                   TextField(
                     decoration: InputDecoration(
                       labelText: '6-digit code',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ],

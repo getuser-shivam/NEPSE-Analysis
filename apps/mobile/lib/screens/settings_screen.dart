@@ -120,7 +120,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
               },
               child: const Text('Go to Login'),
             ),
@@ -146,18 +149,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   children: [
                     Text(
                       user.name ?? 'Stock Analyst',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
                       user.email,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
               ),
               StatusPill(
                 label: user.mfaEnabled ? 'MFA: Enabled' : 'MFA: Off',
-                color: user.mfaEnabled ? AppColors.positive : AppColors.highlight,
+                color: user.mfaEnabled
+                    ? AppColors.positive
+                    : AppColors.highlight,
               ),
             ],
           ),
@@ -167,7 +176,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const MfaSetupScreen()));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MfaSetupScreen(),
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.security),
                   label: const Text('Security'),

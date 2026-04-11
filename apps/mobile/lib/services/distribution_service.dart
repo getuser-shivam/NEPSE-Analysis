@@ -21,10 +21,7 @@ class DistributionService {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: json.encode({
-        'items': items,
-        'shippingAddress': shippingAddress,
-      }),
+      body: json.encode({'items': items, 'shippingAddress': shippingAddress}),
     );
 
     if (response.statusCode == 201) {
@@ -67,7 +64,11 @@ class DistributionService {
     }
   }
 
-  Future<void> logActivity(String? productId, String action, [Map<String, dynamic>? metadata]) async {
+  Future<void> logActivity(
+    String? productId,
+    String action, [
+    Map<String, dynamic>? metadata,
+  ]) async {
     final baseUrl = await _apiSettingsService.loadBaseUrl();
     final token = await _authService.getAccessToken();
 

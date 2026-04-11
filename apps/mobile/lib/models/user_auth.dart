@@ -13,7 +13,8 @@ class UserAuth with _$UserAuth {
     DateTime? lastLogin,
   }) = _UserAuth;
 
-  factory UserAuth.fromJson(Map<String, dynamic> json) => _$UserAuthFromJson(json);
+  factory UserAuth.fromJson(Map<String, dynamic> json) =>
+      _$UserAuthFromJson(json);
 }
 
 @freezed

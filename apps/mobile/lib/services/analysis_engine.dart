@@ -1,5 +1,5 @@
 /// Analysis Engine
-/// 
+///
 /// Core business logic for analyzing stock market data, combining technical
 /// indicators with AI-powered insights to generate comprehensive market analysis.
 library nepse_analysis_analysis_engine;
@@ -81,10 +81,10 @@ class AnalysisEngine {
   final AIService _aiService;
 
   AnalysisEngine({AIService? aiService})
-      : _aiService = aiService ?? AIService();
+    : _aiService = aiService ?? AIService();
 
   /// Performs comprehensive market analysis for a stock
-  /// 
+  ///
   /// [symbol] - Stock symbol
   /// [prices] - Historical price data
   /// [highs] - Historical high prices
@@ -143,7 +143,9 @@ class AnalysisEngine {
       'symbol': symbol,
       'currentPrice': prices.last,
       'priceChange': prices.length > 1
-          ? ((prices.last - prices[prices.length - 2]) / prices[prices.length - 2]) * 100
+          ? ((prices.last - prices[prices.length - 2]) /
+                    prices[prices.length - 2]) *
+                100
           : 0,
       'indicators': {
         'rsi14': indicators.rsi14,
@@ -173,12 +175,14 @@ class AnalysisEngine {
   ) {
     // Start with technical signal
     var recommendation = indicators.signal;
-    
+
     // Adjust based on AI sentiment if available
     if (aiAnalysis != null && aiAnalysis.confidence > 0.6) {
-      if (aiAnalysis.sentiment == 'bullish' && recommendation.contains('sell')) {
+      if (aiAnalysis.sentiment == 'bullish' &&
+          recommendation.contains('sell')) {
         recommendation = 'hold';
-      } else if (aiAnalysis.sentiment == 'bearish' && recommendation.contains('buy')) {
+      } else if (aiAnalysis.sentiment == 'bearish' &&
+          recommendation.contains('buy')) {
         recommendation = 'hold';
       }
     }
@@ -217,11 +221,7 @@ class AnalysisEngine {
   /// Analyzes market trend direction and strength
   TrendAnalysis analyzeTrend(List<double> prices) {
     if (prices.length < 20) {
-      return TrendAnalysis(
-        direction: 'neutral',
-        strength: 0,
-        confidence: 0.3,
-      );
+      return TrendAnalysis(direction: 'neutral', strength: 0, confidence: 0.3);
     }
 
     final direction = _detectTrendDirection(prices);

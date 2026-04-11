@@ -185,22 +185,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final result = await _authService.login(
-        email: email, 
-        password: password, 
-        mfaCode: mfaCode
+        email: email,
+        password: password,
+        mfaCode: mfaCode,
       );
 
       if (result['mfaRequired'] == true) {
         state = state.copyWith(
-          isLoading: false, 
-          mfaRequired: true, 
-          tempUserId: result['userId']
+          isLoading: false,
+          mfaRequired: true,
+          tempUserId: result['userId'],
         );
       } else {
         state = state.copyWith(
-          isLoading: false, 
+          isLoading: false,
           user: result['user'],
-          mfaRequired: false
+          mfaRequired: false,
         );
       }
     } catch (e) {

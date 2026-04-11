@@ -19,7 +19,7 @@ class ProductService {
     int limit = 20,
   }) async {
     final baseUrl = await _apiSettingsService.loadBaseUrl();
-    
+
     final queryParams = {
       if (category != null) 'category': category,
       if (search != null) 'search': search,
@@ -27,8 +27,10 @@ class ProductService {
       'limit': limit.toString(),
     };
 
-    final uri = Uri.parse('$baseUrl/api/products').replace(queryParameters: queryParams);
-    
+    final uri = Uri.parse(
+      '$baseUrl/api/products',
+    ).replace(queryParameters: queryParams);
+
     // In a real app, we'd add the auth token here from a secure storage provider
     final response = await http.get(uri);
 
@@ -44,7 +46,7 @@ class ProductService {
   Future<Product> getProductDetails(String id) async {
     final baseUrl = await _apiSettingsService.loadBaseUrl();
     final uri = Uri.parse('$baseUrl/api/products/$id');
-    
+
     final response = await http.get(uri);
 
     if (response.statusCode == 200) {

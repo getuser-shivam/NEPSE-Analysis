@@ -45,7 +45,11 @@ class WatchlistService {
     }
   }
 
-  Future<WatchlistItem> addItem(String watchlistId, String stockId, {String? notes}) async {
+  Future<WatchlistItem> addItem(
+    String watchlistId,
+    String stockId, {
+    String? notes,
+  }) async {
     final baseUrl = await _apiSettingsService.loadBaseUrl();
     final token = await _authService.getAccessToken();
 

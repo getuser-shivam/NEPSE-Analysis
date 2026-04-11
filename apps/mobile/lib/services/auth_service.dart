@@ -50,11 +50,7 @@ class AuthService {
     final response = await http.post(
       Uri.parse('$baseUrl/api/auth/register'),
       headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        'email': email,
-        'password': password,
-        'name': name,
-      }),
+      body: json.encode({'email': email, 'password': password, 'name': name}),
     );
 
     if (response.statusCode != 201) {

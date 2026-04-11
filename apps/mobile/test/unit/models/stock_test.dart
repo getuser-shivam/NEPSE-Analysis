@@ -18,7 +18,7 @@ void main() {
         previousClose: 995.0,
         volume: 10000,
       );
-      
+
       expect(stock.symbol, equals('NABIL'));
       expect(stock.currentPrice, equals(1000.0));
     });
@@ -34,7 +34,7 @@ void main() {
         previousClose: 995.0,
         volume: 10000,
       );
-      
+
       expect(stock.priceChange, equals(5.0));
     });
 
@@ -49,7 +49,7 @@ void main() {
         previousClose: 995.0,
         volume: 10000,
       );
-      
+
       expect(stock.percentChange, closeTo(0.5025, 0.001));
     });
   });

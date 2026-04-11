@@ -1,5 +1,5 @@
 /// AI Service
-/// 
+///
 /// Integration with Groq AI and Pollens AI APIs for predictive modeling
 /// and trend analysis of stock market data.
 library nepse_analysis_ai_service;
@@ -31,8 +31,9 @@ class AIConfig {
     this.timeoutMs = 30000,
   });
 
-  bool get isConfigured => (enableGroq && groqApiKey.isNotEmpty) || 
-                           (enablePollens && pollensApiKey.isNotEmpty);
+  bool get isConfigured =>
+      (enableGroq && groqApiKey.isNotEmpty) ||
+      (enablePollens && pollensApiKey.isNotEmpty);
 }
 
 /// Result from Groq AI analysis
@@ -100,12 +101,8 @@ class PollensPredictionResult {
 class AIService {
   AIConfig config;
 
-  AIService({
-    AIConfig? config,
-  }) : config = config ?? AIConfig(
-    groqApiKey: '',
-    pollensApiKey: '',
-  );
+  AIService({AIConfig? config})
+    : config = config ?? AIConfig(groqApiKey: '', pollensApiKey: '');
 
   /// Analyze market data using Groq AI
   Future<GroqAnalysisResult> analyzeWithGroq({
@@ -119,28 +116,28 @@ class AIService {
     try {
       final prompt = _buildGroqPrompt(symbol, marketData);
 
-      final response = await http.post(
-        Uri.parse('${config.groqBaseUrl}/chat/completions'),
-        headers: {
-          'Authorization': 'Bearer ${config.groqApiKey}',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'model': 'llama3-8b-8192',
-          'messages': [
-            {
-              'role': 'system',
-              'content': 'You are a financial analyst specializing in Nepal Stock Exchange (NEPSE). Provide concise, data-driven analysis in JSON format.',
+      final response = await http
+          .post(
+            Uri.parse('${config.groqBaseUrl}/chat/completions'),
+            headers: {
+              'Authorization': 'Bearer ${config.groqApiKey}',
+              'Content-Type': 'application/json',
             },
-            {
-              'role': 'user',
-              'content': prompt,
-            },
-          ],
-          'max_tokens': config.maxTokens,
-          'temperature': config.temperature,
-        }),
-      ).timeout(Duration(milliseconds: config.timeoutMs));
+            body: jsonEncode({
+              'model': 'llama3-8b-8192',
+              'messages': [
+                {
+                  'role': 'system',
+                  'content':
+                      'You are a financial analyst specializing in Nepal Stock Exchange (NEPSE). Provide concise, data-driven analysis in JSON format.',
+                },
+                {'role': 'user', 'content': prompt},
+              ],
+              'max_tokens': config.maxTokens,
+              'temperature': config.temperature,
+            }),
+          )
+          .timeout(Duration(milliseconds: config.timeoutMs));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -165,19 +162,21 @@ class AIService {
     }
 
     try {
-      final response = await http.post(
-        Uri.parse('${config.pollensBaseUrl}/predict'),
-        headers: {
-          'Authorization': 'Bearer ${config.pollensApiKey}',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'symbol': symbol,
-          'priceHistory': priceHistory,
-          'daysAhead': daysAhead,
-          'model': 'lstm-v2',
-        }),
-      ).timeout(Duration(milliseconds: config.timeoutMs));
+      final response = await http
+          .post(
+            Uri.parse('${config.pollensBaseUrl}/predict'),
+            headers: {
+              'Authorization': 'Bearer ${config.pollensApiKey}',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'symbol': symbol,
+              'priceHistory': priceHistory,
+              'daysAhead': daysAhead,
+              'model': 'lstm-v2',
+            }),
+          )
+          .timeout(Duration(milliseconds: config.timeoutMs));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -229,7 +228,7 @@ Provide a JSON response with the following structure:
       // Extract JSON from the response
       final jsonStart = content.indexOf('{');
       final jsonEnd = content.lastIndexOf('}') + 1;
-      
+
       if (jsonStart == -1 || jsonEnd == 0) {
         throw Exception('No JSON found in response');
       }
@@ -256,5 +255,6 @@ Provide a JSON response with the following structure:
 
   /// Check if AI services are available
   bool isGroqAvailable() => config.enableGroq && config.groqApiKey.isNotEmpty;
-  bool isPollensAvailable() => config.enablePollens && config.pollensApiKey.isNotEmpty;
+  bool isPollensAvailable() =>
+      config.enablePollens && config.pollensApiKey.isNotEmpty;
 }

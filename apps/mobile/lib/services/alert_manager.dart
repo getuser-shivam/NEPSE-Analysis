@@ -1,5 +1,5 @@
 /// Alert Manager Service
-/// 
+///
 /// Manages price alerts for stocks including creation, monitoring,
 /// and triggering of alerts based on various conditions.
 library nepse_analysis_alert_manager;
@@ -17,12 +17,7 @@ enum AlertType {
 }
 
 /// Current status of an alert
-enum AlertStatus {
-  active,
-  triggered,
-  disabled,
-  expired,
-}
+enum AlertStatus { active, triggered, disabled, expired }
 
 /// Represents a single price alert
 class PriceAlert {
@@ -48,8 +43,8 @@ class PriceAlert {
     this.triggeredPrice,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now();
 
   /// Checks if the alert should be triggered based on current price
   bool shouldTrigger(double currentPrice, double previousPrice) {
@@ -133,7 +128,10 @@ class AlertManager {
 
   AlertManager() {
     // Periodic cleanup of expired alerts
-    _cleanupTimer = Timer.periodic(const Duration(hours: 1), (_) => _cleanupExpiredAlerts());
+    _cleanupTimer = Timer.periodic(
+      const Duration(hours: 1),
+      (_) => _cleanupExpiredAlerts(),
+    );
   }
 
   /// Creates a new price alert
@@ -177,7 +175,9 @@ class AlertManager {
       symbol: symbol,
       type: isAbove ? AlertType.priceAbove : AlertType.priceBelow,
       targetValue: price,
-      note: isAbove ? 'Alert when price goes above $price' : 'Alert when price goes below $price',
+      note: isAbove
+          ? 'Alert when price goes above $price'
+          : 'Alert when price goes below $price',
     );
   }
 
@@ -214,7 +214,10 @@ class AlertManager {
   }
 
   /// Checks all alerts against current prices and triggers if needed
-  void checkAlerts(Map<String, double> currentPrices, Map<String, double> previousPrices) {
+  void checkAlerts(
+    Map<String, double> currentPrices,
+    Map<String, double> previousPrices,
+  ) {
     for (final alert in getActiveAlerts()) {
       final currentPrice = currentPrices[alert.symbol];
       final previousPrice = previousPrices[alert.symbol];
@@ -232,10 +235,12 @@ class AlertManager {
   int clearOldTriggeredAlerts(Duration maxAge) {
     final now = DateTime.now();
     final toRemove = _alerts.values
-        .where((a) =>
-            a.status == AlertStatus.triggered &&
-            a.triggeredAt != null &&
-            now.difference(a.triggeredAt!) > maxAge)
+        .where(
+          (a) =>
+              a.status == AlertStatus.triggered &&
+              a.triggeredAt != null &&
+              now.difference(a.triggeredAt!) > maxAge,
+        )
         .map((a) => a.id)
         .toList();
 
@@ -311,7 +316,9 @@ class AlertStatistics {
     return AlertStatistics(
       totalAlerts: alerts.length,
       activeAlerts: alerts.where((a) => a.status == AlertStatus.active).length,
-      triggeredAlerts: alerts.where((a) => a.status == AlertStatus.triggered).length,
+      triggeredAlerts: alerts
+          .where((a) => a.status == AlertStatus.triggered)
+          .length,
       alertsBySymbol: bySymbol,
       alertsByType: byType,
     );

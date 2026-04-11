@@ -34,15 +34,24 @@ class WatchlistScreen extends ConsumerWidget {
         child: watchlistsAsync.when(
           data: (watchlists) => _buildWatchlistList(context, watchlists, ref),
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, _) => Center(child: Text('Error loading watchlists: $err')),
+          error: (err, _) =>
+              Center(child: Text('Error loading watchlists: $err')),
         ),
       ),
     );
   }
 
-  Widget _buildWatchlistList(BuildContext context, List<Watchlist> watchlists, WidgetRef ref) {
+  Widget _buildWatchlistList(
+    BuildContext context,
+    List<Watchlist> watchlists,
+    WidgetRef ref,
+  ) {
     if (watchlists.isEmpty) {
-      return const Center(child: Text('No watchlists yet. Create one to start monitoring stocks.'));
+      return const Center(
+        child: Text(
+          'No watchlists yet. Create one to start monitoring stocks.',
+        ),
+      );
     }
 
     return ListView.builder(
@@ -57,10 +66,15 @@ class WatchlistScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
               child: Text(
                 watchlist.name,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            ...watchlist.items.map((item) => _buildWatchlistItem(context, item, ref)),
+            ...watchlist.items.map(
+              (item) => _buildWatchlistItem(context, item, ref),
+            ),
             const SizedBox(height: 24),
           ],
         );
@@ -68,7 +82,11 @@ class WatchlistScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildWatchlistItem(BuildContext context, WatchlistItem item, WidgetRef ref) {
+  Widget _buildWatchlistItem(
+    BuildContext context,
+    WatchlistItem item,
+    WidgetRef ref,
+  ) {
     final stock = item.stock;
     if (stock == null) return const SizedBox.shrink();
 
@@ -84,8 +102,20 @@ class WatchlistScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(stock.symbol, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text(stock.name, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  Text(
+                    stock.symbol,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    stock.name,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -94,11 +124,15 @@ class WatchlistScreen extends ConsumerWidget {
               children: [
                 Text(
                   'NPR ${stock.lastPrice?.toStringAsFixed(2) ?? '0.00'}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 StatusPill(
-                  label: '${isPositive ? '+' : ''}${stock.changePercent?.toStringAsFixed(2)}%',
+                  label:
+                      '${isPositive ? '+' : ''}${stock.changePercent?.toStringAsFixed(2)}%',
                   color: isPositive ? AppColors.positive : AppColors.negative,
                 ),
               ],
@@ -120,12 +154,20 @@ class WatchlistScreen extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('New Watchlist'),
-        content: TextField(controller: controller, decoration: const InputDecoration(labelText: 'Watchlist Name')),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'Watchlist Name'),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () async {
-              await ref.read(watchlistServiceProvider).createWatchlist(controller.text);
+              await ref
+                  .read(watchlistServiceProvider)
+                  .createWatchlist(controller.text);
               ref.invalidate(watchlistsProvider);
               if (context.mounted) Navigator.pop(context);
             },
@@ -136,7 +178,11 @@ class WatchlistScreen extends ConsumerWidget {
     );
   }
 
-  void _showSetAlertSheet(BuildContext context, WatchlistItem item, WidgetRef ref) {
+  void _showSetAlertSheet(
+    BuildContext context,
+    WatchlistItem item,
+    WidgetRef ref,
+  ) {
     // Implementation for Set Alert bottom sheet
   }
 }

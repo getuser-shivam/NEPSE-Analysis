@@ -40,23 +40,49 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.person_add_alt_1_outlined, size: 64, color: AppColors.primary),
+                  const Icon(
+                    Icons.person_add_alt_1_outlined,
+                    size: 64,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Create Account',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  const Text('Join NEPSE Analysis to build your investment strategy.'),
+                  const Text(
+                    'Join NEPSE Analysis to build your investment strategy.',
+                  ),
                   const SizedBox(height: 32),
-                  
-                  _buildTextField(_nameController, 'Full Name', Icons.person_outline),
+
+                  _buildTextField(
+                    _nameController,
+                    'Full Name',
+                    Icons.person_outline,
+                  ),
                   const SizedBox(height: 16),
-                  _buildTextField(_emailController, 'Email', Icons.email_outlined),
+                  _buildTextField(
+                    _emailController,
+                    'Email',
+                    Icons.email_outlined,
+                  ),
                   const SizedBox(height: 16),
-                  _buildTextField(_passwordController, 'Password', Icons.lock_outline, obscureText: true),
+                  _buildTextField(
+                    _passwordController,
+                    'Password',
+                    Icons.lock_outline,
+                    obscureText: true,
+                  ),
                   const SizedBox(height: 16),
-                  _buildTextField(_confirmPasswordController, 'Confirm Password', Icons.lock_reset_outlined, obscureText: true),
+                  _buildTextField(
+                    _confirmPasswordController,
+                    'Confirm Password',
+                    Icons.lock_reset_outlined,
+                    obscureText: true,
+                  ),
 
                   if (_error != null) ...[
                     const SizedBox(height: 16),
@@ -76,14 +102,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      child: _isLoading 
+                      child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text('Register'),
                     ),
                   ),
-                  
+
                   TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: const Text('Already have an account? Login'),
@@ -97,7 +125,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool obscureText = false}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    bool obscureText = false,
+  }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
@@ -126,14 +159,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
 
     try {
-      await ref.read(authServiceProvider).register(
-        email: email,
-        password: password,
-        name: name,
-      );
+      await ref
+          .read(authServiceProvider)
+          .register(email: email, password: password, name: name);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registration successful! Please login.')),
+          const SnackBar(
+            content: Text('Registration successful! Please login.'),
+          ),
         );
         Navigator.pop(context);
       }

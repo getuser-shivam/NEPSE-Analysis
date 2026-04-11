@@ -49,10 +49,7 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: _buildFloatingNavBar(),
     );
   }
@@ -93,7 +90,9 @@ class _HomeShellState extends State<HomeShell> {
             duration: const Duration(milliseconds: 300),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.accent.withValues(alpha: 0.15) : Colors.transparent,
+              color: isSelected
+                  ? AppColors.accent.withValues(alpha: 0.15)
+                  : Colors.transparent,
               shape: BoxShape.circle,
             ),
             child: Icon(
