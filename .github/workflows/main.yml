@@ -71,10 +71,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          sdk: ${{ env.DART_VERSION }}
+          channel: 'stable'
 
       - name: Cache Dart dependencies
         uses: actions/cache@v4
@@ -87,7 +87,7 @@ jobs:
             ${{ runner.os }}-dart-
 
       - name: Install dependencies
-        run: dart pub get
+        run: flutter pub get
 
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
@@ -133,22 +133,6 @@ jobs:
       run:
         working-directory: ./apps/api
 
-    services:
-      # SQL Server for integration tests (optional, using service container)
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env:
-          ACCEPT_EULA: Y
-          SA_PASSWORD: YourStrong@Passw0rd
-          MSSQL_PID: Developer
-        ports:
-          - 1433:1433
-        options: >-
-          --health-cmd "opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q 'SELECT 1'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -178,7 +162,6 @@ jobs:
         run: npm test --if-present || echo "No tests configured"
         env:
           NODE_ENV: test
-          DATABASE_URL: "sqlserver://localhost:1433;database=test;user=sa;password=YourStrong@Passw0rd;trustServerCertificate=true"
 
       - name: Generate Prisma client
         run: npx prisma generate
@@ -186,13 +169,13 @@ jobs:
       - name: Run database migrations (test)
         run: npx prisma migrate deploy || npx prisma db push --accept-data-loss
         env:
-          DATABASE_URL: "sqlserver://localhost:1433;database=test;user=sa;password=YourStrong@Passw0rd;trustServerCertificate=true"
+          DATABASE_URL: "sqlite://./test.db"
 
       - name: Run integration tests
         run: npm run test:integration --if-present || echo "No integration tests"
         env:
           NODE_ENV: test
-          DATABASE_URL: "sqlserver://localhost:1433;database=test;user=sa;password=YourStrong@Passw0rd;trustServerCertificate=true"
+          DATABASE_URL: "sqlite://./test.db"
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           POLLENS_API_KEY: ${{ secrets.POLLENS_API_KEY }}
 
