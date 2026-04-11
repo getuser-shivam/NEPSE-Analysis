@@ -3,7 +3,7 @@ version: 2
 updates:
   # Node.js dependencies
   - package-ecosystem: "npm"
-    directory: "/backend"
+    directory: "/apps/api"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -26,7 +26,7 @@ updates:
 
   # Dart dependencies
   - package-ecosystem: "pub"
-    directory: "/nepse_analysis"
+    directory: "/apps/mobile"
     schedule:
       interval: "weekly"
       day: "monday"
