@@ -213,7 +213,7 @@ jobs:
     name: Build Web Assets
     runs-on: ubuntu-latest
     needs: [dart-tests, node-tests]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
 
     steps:
       - name: Checkout
@@ -291,7 +291,7 @@ jobs:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
     needs: build-web
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     environment:
       name: github-pages
       url: https://getuser-shivam.github.io/NEPSE-Analysis/
@@ -346,7 +346,7 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     needs: [dart-tests, node-tests]
-    if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]')
+    if: github.ref == 'refs/heads/master' && contains(github.event.head_commit.message, '[release]')
     
     steps:
       - name: Checkout
@@ -418,7 +418,7 @@ jobs:
     name: Send Notifications
     runs-on: ubuntu-latest
     needs: [dart-tests, node-tests, deploy-github-pages]
-    if: always() && github.ref == 'refs/heads/main'
+    if: always() && github.ref == 'refs/heads/master'
     
     steps:
       - name: Notify on success
