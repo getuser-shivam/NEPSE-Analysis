@@ -86,9 +86,9 @@ jobs:
         ecosystem: [npm, pub]
         include:
           - ecosystem: npm
-            manifest: backend/package-lock.json
+            manifest: apps/api/package-lock.json
           - ecosystem: pub
-            manifest: nepse_analysis/pubspec.lock
+            manifest: apps/mobile/pubspec.lock
             
     steps:
       - name: Checkout
@@ -100,7 +100,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high --file=backend/package-lock.json
+          args: --severity-threshold=high --file=apps/api/package-lock.json
 
       - name: Upload Snyk results to GitHub Code Scanning
         uses: snyk/actions/node@master
@@ -120,7 +120,7 @@ jobs:
       - name: Dart dependency check
         if: matrix.ecosystem == 'pub'
         run: |
-          cd nepse_analysis
+          cd apps/mobile
           dart pub outdated || true
 
   # ============================================
@@ -137,7 +137,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t nepse-analysis:scan ./backend
+          docker build -t nepse-analysis:scan ./apps/api
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master

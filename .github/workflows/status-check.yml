@@ -47,8 +47,8 @@ jobs:
       - name: Check dependencies health
         run: |
           echo "Checking for outdated dependencies..."
-          cd backend && npm outdated || true
-          cd ../nepse_analysis && dart pub outdated || true
+          cd apps/api && npm outdated || true
+          cd ../mobile && dart pub outdated || true
 
       - name: Notify status
         uses: actions/github-script@v7

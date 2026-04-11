@@ -65,7 +65,7 @@ jobs:
     if: ${{ !inputs.skip_tests }}
     defaults:
       run:
-        working-directory: ./nepse_analysis
+        working-directory: ./apps/mobile
     
     steps:
       - name: Checkout
@@ -131,7 +131,7 @@ jobs:
     if: ${{ !inputs.skip_tests }}
     defaults:
       run:
-        working-directory: ./backend
+        working-directory: ./apps/api
 
     services:
       # SQL Server for integration tests (optional, using service container)
@@ -158,13 +158,13 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: './backend/package-lock.json'
+          cache-dependency-path: './apps/api/package-lock.json'
 
       - name: Cache node_modules
         uses: actions/cache@v4
         with:
-          path: ./backend/node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('./backend/package-lock.json') }}
+          path: ./apps/api/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('./apps/api/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
@@ -247,8 +247,14 @@ jobs:
           dart doc --output ../_site/dart-docs || echo "Dart doc generation skipped"
 
       - name: Build web dashboard
-        working-directory: ./backend
-        run: npm run build:web
+        working-directory: ./packages/client_sdk
+        run: |
+          dart pub get
+          dart compile js web/main.dart -o web/main.dart.js
+          mkdir -p ../../_site
+          cp web/index.html ../../_site/
+          cp web/style.css ../../_site/
+          cp web/main.dart.js ../../_site/
 
       - name: Create .nojekyll file
         run: touch _site/.nojekyll

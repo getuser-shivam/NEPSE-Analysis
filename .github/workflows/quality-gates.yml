@@ -46,18 +46,18 @@ jobs:
       - name: Generate coverage reports
         run: |
           # Node.js coverage
-          cd backend
+          cd apps/api
           npm ci
           npm test -- --coverage || true
-          cd ..
+          cd ../..
           
           # Dart coverage
-          cd nepse_analysis
+          cd apps/mobile
           dart pub get
           dart test --coverage=coverage
           dart pub global activate coverage
           format_coverage --lcov --in=coverage --out=coverage.lcov --packages=.dart_tool/package_config.json
-          cd ..
+          cd ../..
 
       - name: SonarQube Scan
         uses: SonarSource/sonarcloud-github-action@master
@@ -68,10 +68,10 @@ jobs:
           args: >
             -Dsonar.projectKey=getuser-shivam_NEPSE-Analysis
             -Dsonar.organization=getuser-shivam
-            -Dsonar.javascript.lcov.reportPaths=backend/coverage/lcov.info
-            -Dsonar.dart.lcov.reportPaths=nepse_analysis/coverage.lcov
-            -Dsonar.sources=backend/src,nepse_analysis/lib
-            -Dsonar.tests=backend/test,nepse_analysis/test
+            -Dsonar.javascript.lcov.reportPaths=apps/api/coverage/lcov.info
+            -Dsonar.dart.lcov.reportPaths=apps/mobile/coverage.lcov
+            -Dsonar.sources=apps/api/src,apps/mobile/lib
+            -Dsonar.tests=apps/api/test,apps/mobile/test
             -Dsonar.coverage.exclusions=**/*.test.js,**/*_test.dart,**/test/**
             -Dsonar.qualitygate.wait=true
 
@@ -105,9 +105,9 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          cd backend
+          cd apps/api
           npm test -- --coverage --coverageReporters=text-summary || true
-          cd ../nepse_analysis
+          cd ../mobile
           dart test --coverage=coverage
           dart pub global activate coverage
           format_coverage --lcov --in=coverage --out=coverage.lcov --packages=.dart_tool/package_config.json --report-on=lib
@@ -135,7 +135,7 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./backend/coverage/lcov.info,./nepse_analysis/coverage.lcov
+          files: ./apps/api/coverage/lcov.info,./apps/mobile/coverage.lcov
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
@@ -205,7 +205,7 @@ jobs:
           npm install -g jscpd
           jscpd --reporters console,html --output reports/ \
             --ignore "**/*.test.js,**/*_test.dart,**/node_modules/**,**/.dart_tool/**" \
-            backend/src nepse_analysis/lib || true
+            apps/api/src apps/mobile/lib || true
 
       - name: Check complexity
         run: |

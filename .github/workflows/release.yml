@@ -120,18 +120,18 @@ jobs:
 
       - name: Build Dart executable
         run: |
-          cd nepse_analysis
+          cd apps/mobile
           dart pub get
           dart compile exe bin/nepse_analysis.dart -o build/nepse_analysis_${{ matrix.target }}
         continue-on-error: true
 
       - name: Build Node.js package
         run: |
-          cd backend
+          cd apps/api
           npm ci
           npm run build || true
           npm pack
-          mv *.tgz ../build/
+          mv *.tgz ../../build/
 
       - name: Create archives
         run: |
@@ -196,7 +196,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: ./apps/api
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -278,7 +278,7 @@ jobs:
 
       - name: Publish to GitHub Packages
         run: |
-          cd backend
+          cd apps/api
           npm publish --registry=https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -289,7 +289,7 @@ jobs:
 
       - name: Publish to pub.dev (dry run)
         run: |
-          cd nepse_analysis
+          cd apps/mobile
           dart pub publish --dry-run
         continue-on-error: true
 

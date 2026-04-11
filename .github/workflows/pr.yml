@@ -45,7 +45,7 @@ jobs:
     needs: pr-check
     defaults:
       run:
-        working-directory: ./nepse_analysis
+        working-directory: ./apps/mobile
 
     steps:
       - name: Checkout
@@ -63,7 +63,7 @@ jobs:
         with:
           path: |
             ~/.pub-cache
-            ./nepse_analysis/.dart_tool
+            ./apps/mobile/.dart_tool
           key: ${{ runner.os }}-dart-${{ hashFiles('**/pubspec.lock') }}
 
       - name: Install dependencies
@@ -104,7 +104,7 @@ jobs:
     needs: pr-check
     defaults:
       run:
-        working-directory: ./backend
+        working-directory: ./apps/api
 
     steps:
       - name: Checkout
@@ -115,7 +115,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: './backend/package-lock.json'
+          cache-dependency-path: './apps/api/package-lock.json'
 
       - name: Install dependencies
         run: npm ci
@@ -159,7 +159,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Check bundle size (Node.js)
-        working-directory: ./backend
+        working-directory: ./apps/api
         run: |
           npm ci
           npm run build --if-present || echo "No build step"
