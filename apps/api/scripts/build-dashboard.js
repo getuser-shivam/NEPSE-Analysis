@@ -418,6 +418,15 @@ Sitemap: https://getuser-shivam.github.io/NEPSE-Analysis/sitemap.xml
   }
 }
 
+async function generateNojekyll() {
+  try {
+    await fs.writeFile(path.join(SITE_DIR, '.nojekyll'), '');
+    log('✓ Generated .nojekyll file', 'green');
+  } catch (error) {
+    log(`✗ Failed to generate .nojekyll: ${error.message}`, 'red');
+  }
+}
+
 async function main() {
   log('\n🏗️  Building NEPSE Analysis Dashboard...\n', 'blue');
 
@@ -435,6 +444,7 @@ async function main() {
     // Generate config files
     await generateCNAME();
     await generateRobotsTxt();
+    await generateNojekyll();
 
     // Copy documentation
     const docs = ['README.md', 'CHANGELOG.md', 'CI_CD_GUIDE.md'];
