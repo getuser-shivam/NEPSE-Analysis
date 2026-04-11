@@ -32,6 +32,25 @@ class NepseApiClient {
 
   final String baseUrl;
   final http.Client _httpClient;
+  String? _authToken;
+
+  void setAuthToken(String token) {
+    _authToken = token;
+  }
+
+  Future<Map<String, dynamic>> login(String email, String password) async {
+    final json = await _requestJson(
+      method: 'POST',
+      path: '/api/auth/login',
+      body: {'email': email, 'password': password},
+    );
+    
+    // Automatically intercept and store JWT if successful response structure contains it
+    if (json.containsKey('accessToken')) {
+      _authToken = json['accessToken'];
+    }
+    return json;
+  }
 
   Future<Map<String, dynamic>> getHealth() async {
     return _requestJson(method: 'GET', path: '/health');
@@ -304,8 +323,14 @@ class NepseApiClient {
         : uri.replace(queryParameters: queryParameters);
   }
 
-  Map<String, String> get _headers => const {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  };
+  Map<String, String> get _headers {
+    final headers = <String, String>{
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    };
+    if (_authToken != null) {
+      headers['Authorization'] = 'Bearer $_authToken';
+    }
+    return headers;
+  }
 }

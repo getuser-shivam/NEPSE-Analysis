@@ -25,12 +25,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare site
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Build Flutter Web Dashboard
+        run: |
+          cd apps/mobile
+          flutter pub get
+          flutter build web --base-href /NEPSE-Analysis/
+
+      - name: Prepare Artifacts
         run: |
           mkdir -p _site
-          cp packages/client_sdk/web/index.html _site/
-          cp packages/client_sdk/web/style.css  _site/
-          cp packages/client_sdk/web/main.dart.js _site/
+          cp -r apps/mobile/build/web/* _site/
           cp README.md _site/ 2>/dev/null || true
           cp CHANGELOG.md _site/ 2>/dev/null || true
           touch _site/.nojekyll

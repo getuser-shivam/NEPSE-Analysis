@@ -13,7 +13,7 @@
     "prisma:studio": "prisma studio",
     "seed": "node prisma/seed.js",
     "build:web": "npm run build:docs && npm run build:dashboard",
-    "build:docs": "mkdir -p ../_site/api-docs && cp -r src/routes ../_site/api-docs/ 2>/dev/null || echo 'No API docs to copy'",
+    "build:docs": "if not exist ..\\_site\\api-docs mkdir ..\\_site\\api-docs && xcopy src/routes ..\\_site\\api-docs\\routes /E /I /Y || echo No API docs to copy",
     "build:dashboard": "node scripts/build-dashboard.js",
     "predeploy": "npm run build:web",
     "deploy": "gh-pages -d ../_site -b gh-pages -m 'Deploy to GitHub Pages [ci skip]'",

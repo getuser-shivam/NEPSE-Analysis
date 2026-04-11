@@ -14,7 +14,7 @@ export const aiConfig = {
   groq: {
     apiKey: process.env.GROQ_API_KEY || '',
     baseUrl: process.env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1',
-    model: process.env.GROQ_MODEL || 'llama3-8b-8192',
+    model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
     maxTokens: parseInt(process.env.GROQ_MAX_TOKENS || '500', 10),
     temperature: parseFloat(process.env.GROQ_TEMPERATURE || '0.3'),
     timeout: parseInt(process.env.GROQ_TIMEOUT || '30000', 10),
@@ -22,8 +22,8 @@ export const aiConfig = {
 
   // Pollens AI Configuration
   pollens: {
-    apiKey: process.env.POLLENS_API_KEY || '',
-    baseUrl: process.env.POLLENS_BASE_URL || 'https://api.pollens.ai/v1',
+    apiKey: process.env.POLLENS_API_KEY || '', // Optional — Pollinations.ai is free
+    baseUrl: process.env.POLLENS_BASE_URL || 'https://text.pollinations.ai',
     timeout: parseInt(process.env.POLLENS_TIMEOUT || '30000', 10),
   },
 

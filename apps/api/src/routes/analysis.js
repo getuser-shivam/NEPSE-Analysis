@@ -12,6 +12,9 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import groqService from '../services/groq.service.js';
+import pollensService from '../services/pollens.service.js';
+import { aiConfig } from '../config/ai.config.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -140,16 +143,14 @@ router.post('/', async (request, response, next) => {
       indicators
     );
 
-    // Get AI analysis if enabled (this would integrate with Groq/Pollens)
+    // Get AI analysis if enabled
     let aiAnalysis = null;
     if (enableAI) {
-      // In production, this would call the AI service
-      aiAnalysis = {
-        sentiment: analyzeSentiment(technicalIndicators),
-        confidence: 0.75,
-        prediction: 'Based on technical indicators, price expected to move sideways to up',
-        factors: ['Strong RSI momentum', 'Positive MACD crossover', 'Price near support level'],
-      };
+      aiAnalysis = await getAIAnalysis(stock.symbol, {
+        closes, highs, lows,
+        currentPrice: closes[closes.length - 1],
+        technicalIndicators,
+      });
     }
 
     // Generate recommendation
@@ -478,10 +479,224 @@ function calculateConfidence(indicators, aiAnalysis) {
   if (indicators.rsi14 < 30 || indicators.rsi14 > 70) confidence += 0.2;
   
   if (aiAnalysis) {
-    confidence = (confidence + aiAnalysis.confidence) / 2;
+    confidence = (confidence + (aiAnalysis.confidence || 0.5)) / 2;
   }
   
   return Math.min(confidence, 1.0);
 }
+
+// ============================================
+// AI ORCHESTRATION
+// ============================================
+
+/**
+ * Get AI analysis using Groq (primary) with Pollinations.ai fallback
+ */
+async function getAIAnalysis(symbol, data) {
+  const { closes, highs, lows, currentPrice, technicalIndicators } = data;
+
+  // Prepare market data summary for the AI
+  const marketData = {
+    currentPrice,
+    priceChange: closes.length > 1
+      ? ((closes[closes.length - 1] - closes[closes.length - 2]) / closes[closes.length - 2] * 100).toFixed(2) + '%'
+      : '0%',
+    high52w: Math.max(...highs.slice(-252)),
+    low52w: Math.min(...lows.slice(-252)),
+    avgVolume: 'N/A',
+  };
+
+  // Try Groq first (fastest inference)
+  if (aiConfig.features.enableGroq) {
+    try {
+      const groqResult = await groqService.analyzeMarket({
+        symbol,
+        marketData,
+        indicators: technicalIndicators,
+      });
+      if (!groqResult.error) {
+        groqResult.provider = 'groq';
+        return groqResult;
+      }
+    } catch (err) {
+      console.warn('Groq AI unavailable, falling back to Pollens:', err.message);
+    }
+  }
+
+  // Fallback to Pollinations.ai
+  if (aiConfig.features.enablePollens) {
+    try {
+      const pollensResult = await pollensService.predictPrice({
+        symbol,
+        priceHistory: closes,
+        daysAhead: 5,
+      });
+      if (!pollensResult.error) {
+        pollensResult.provider = 'pollinations';
+        return {
+          sentiment: pollensResult.trendDirection === 'bullish' ? 'bullish'
+            : pollensResult.trendDirection === 'bearish' ? 'bearish' : 'neutral',
+          confidence: pollensResult.confidence,
+          prediction: pollensResult.summary || 'AI prediction generated',
+          factors: [`Trend: ${pollensResult.trendDirection}`, `Risk: ${pollensResult.riskLevel}`],
+          predictions: pollensResult.predictions,
+          provider: 'pollinations',
+        };
+      }
+    } catch (err) {
+      console.warn('Pollens AI unavailable:', err.message);
+    }
+  }
+
+  // Last resort: static analysis from indicators
+  return {
+    sentiment: analyzeSentiment(technicalIndicators),
+    confidence: 0.5,
+    prediction: 'AI services unavailable — using indicator-based analysis',
+    factors: getIndicatorFactors(technicalIndicators),
+    provider: 'static',
+  };
+}
+
+/**
+ * Extract human-readable factors from technical indicators
+ */
+function getIndicatorFactors(indicators) {
+  const factors = [];
+  if (indicators.rsi14 < 30) factors.push('RSI oversold — potential reversal');
+  else if (indicators.rsi14 > 70) factors.push('RSI overbought — potential pullback');
+  else factors.push(`RSI neutral at ${indicators.rsi14?.toFixed(1)}`);
+
+  if (indicators.macdHistogram > 0) factors.push('Positive MACD momentum');
+  else if (indicators.macdHistogram < 0) factors.push('Negative MACD momentum');
+
+  if (indicators.signal) factors.push(`Signal: ${indicators.signal}`);
+
+  return factors;
+}
+
+// ============================================
+// AI-SPECIFIC ENDPOINTS
+// ============================================
+
+/**
+ * POST /api/analysis/ai — Direct AI analysis endpoint
+ */
+router.post('/ai', async (request, response, next) => {
+  try {
+    const schema = z.object({
+      symbol: z.string().min(1).max(20),
+      priceHistory: z.array(z.number()).min(10).optional(),
+      candleData: z.array(z.object({
+        open: z.number(), high: z.number(),
+        low: z.number(), close: z.number(),
+        volume: z.number().optional(),
+      })).optional(),
+      provider: z.enum(['groq', 'pollens', 'auto']).default('auto'),
+    });
+
+    const { symbol, priceHistory, candleData, provider } = schema.parse(request.body);
+
+    let result;
+
+    if (provider === 'groq' || (provider === 'auto' && aiConfig.features.enableGroq)) {
+      result = await groqService.analyzeMarket({
+        symbol,
+        marketData: { priceHistory: priceHistory?.slice(-20) },
+        indicators: {},
+      });
+      result.provider = 'groq';
+    }
+
+    if ((!result || result.error) && (provider === 'pollens' || provider === 'auto')) {
+      if (priceHistory) {
+        result = await pollensService.predictPrice({ symbol, priceHistory });
+      } else if (candleData) {
+        result = await pollensService.analyzeTrend({ symbol, candleData });
+      }
+      if (result) result.provider = 'pollinations';
+    }
+
+    if (!result) {
+      return response.status(503).json({ error: 'No AI providers available' });
+    }
+
+    response.json({
+      symbol: symbol.toUpperCase(),
+      analysis: result,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/analysis/ai/predict — Price prediction endpoint
+ */
+router.post('/ai/predict', async (request, response, next) => {
+  try {
+    const schema = z.object({
+      symbol: z.string().min(1).max(20),
+      priceHistory: z.array(z.number()).min(10),
+      daysAhead: z.number().min(1).max(30).default(5),
+    });
+
+    const { symbol, priceHistory, daysAhead } = schema.parse(request.body);
+
+    const prediction = await pollensService.predictPrice({
+      symbol,
+      priceHistory,
+      daysAhead,
+    });
+
+    response.json({
+      symbol: symbol.toUpperCase(),
+      prediction,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/analysis/ai/brief — Market brief generation
+ */
+router.post('/ai/brief', async (request, response, next) => {
+  try {
+    const schema = z.object({
+      stocks: z.array(z.object({
+        symbol: z.string(),
+        price: z.number().optional(),
+        change: z.number().optional(),
+      })).optional(),
+      marketIndex: z.number().optional(),
+    });
+
+    const { stocks, marketIndex } = schema.parse(request.body);
+
+    const brief = await pollensService.generateMarketBrief({ stocks, marketIndex });
+
+    response.json({
+      brief,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/analysis/ai/status — Check AI service status
+ */
+router.get('/ai/status', (request, response) => {
+  response.json({
+    groq: groqService.getStatus(),
+    pollens: pollensService.getStatus(),
+    features: aiConfig.features,
+    rateLimit: aiConfig.rateLimit,
+  });
+});
 
 export default router;

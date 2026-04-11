@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://getuser-shivam.github.io/NEPSE-Analysis/sitemap.xml
