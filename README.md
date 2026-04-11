@@ -24,14 +24,8 @@ A comprehensive stock analysis application for the Nepal Stock Exchange (NEPSE) 
 - **Backup System**: Automated backups with metadata and rotation
 - **Settings Management**: User-friendly configuration interface
 - **Theme Support**: Light and dark theme options
-- **Comprehensive Testing**: 100% test coverage with automated test suite
+- **Comprehensive Testing**: Full test coverage with automated test suite
 - **Memory Management**: Advanced optimization and monitoring
-
-### Workflow Automation System
-- **AI-Powered Workflows**: Automated code review and enhancement workflows
-- **Auto-Development**: Self-interacting development system for continuous improvement
-- **GUI Launchers**: Multiple interfaces (Web, Desktop Panel, Simple GUI)
-- **Batch Execution**: Run workflows sequentially with configurable delays
 
 ### API Architecture
 - **Node.js Backend**: Express API with Prisma ORM for data persistence
@@ -39,7 +33,7 @@ A comprehensive stock analysis application for the Nepal Stock Exchange (NEPSE) 
 - **Dashboard API**: Single aggregated payload endpoint for UI consumption
 - **Database System**: Fully integrated with MySQL for robust, enterprise-grade data management
 
-## � CI/CD Pipeline
+## 🔧 CI/CD Pipeline
 
 This project uses GitHub Actions for automated testing and deployment.
 
@@ -47,21 +41,20 @@ This project uses GitHub Actions for automated testing and deployment.
 
 | Workflow | Purpose | Trigger |
 |----------|---------|---------|
-| **Main CI/CD** | Build, test, deploy | Push to `main` |
+| **Main CI/CD** | Build, test, deploy | Push to `master` |
+| **Deploy Pages** | Web dashboard deployment | Push to `master` |
 | **PR Checks** | Validate PRs | Pull requests |
-| **Status Check** | Daily health monitoring | Scheduled daily |
 
 ### Automated Testing
 
 - **Dart Tests**: Formatting, analysis, unit tests with coverage
-- **Node.js Tests**: Linting, unit tests, integration tests with SQL Server
+- **Node.js Tests**: Linting, unit tests, integration tests with MySQL
 - **Security Scan**: Vulnerability scanning with Trivy
 
 ### Deployment
 
-- **Staging**: Automatic deployment on every push to `main`
-- **Production**: Manual approval required
-- **GitHub Pages**: Documentation and web dashboard hosting
+- **GitHub Pages**: Automated web dashboard deployment on every push to `master`
+- **Live URL**: [https://getuser-shivam.github.io/NEPSE-Analysis/](https://getuser-shivam.github.io/NEPSE-Analysis/)
 
 ### Setup Required Secrets
 
@@ -69,17 +62,6 @@ Configure these in GitHub repository settings:
 
 - `GROQ_API_KEY` - Groq AI API key
 - `POLLENS_API_KEY` - Pollens AI API key
-
-See [SECRETS.md](.github/SECRETS.md) for detailed setup instructions.
-
-### Manual Deployment
-
-Trigger production deployment:
-
-1. Go to **Actions** → **NEPSE Analysis CI/CD**
-2. Click **Run workflow**
-3. Select **production** target
-4. Click **Run workflow**
 
 ## 📱 Mobile Development
 
@@ -91,16 +73,13 @@ The NEPSE Analysis Flutter app supports USB and wireless debugging.
 
 ```bash
 # Navigate to Flutter app
-cd nepse_app
+cd apps/mobile
 
-# Setup wireless debugging (Windows PowerShell)
-scripts/setup-debugging.ps1
+# Install dependencies
+flutter pub get
 
-# Or on macOS/Linux
-scripts/setup-debugging.sh
-
-# Run with wireless debugging
-flutter run --device-id 192.168.1.100:5555
+# Run on connected device
+flutter run
 ```
 
 **VS Code Launch Configurations:**
@@ -111,158 +90,74 @@ flutter run --device-id 192.168.1.100:5555
    - `NEPSE Analysis (Wireless)` - For wireless debugging
    - `NEPSE Analysis (Profile Mode)` - For performance testing
 
-**Features:**
-- USB debugging with hot reload
-- Wireless debugging over Wi-Fi
-- VS Code tasks for device management
-- Breakpoint debugging and variable inspection
-
-See [DEBUGGING_SETUP.md](nepse_app/DEBUGGING_SETUP.md) for complete setup instructions.
-
 ## 📋 Installation
 
 ### Prerequisites
-- Python 3.8 or higher
-- pip package manager
+- **Dart SDK** >= 3.11.0
+- **Flutter** (stable channel)
+- **Node.js** >= 20.x
+- **MySQL** (for backend database)
+- **npm** package manager
 
 ### Quick Install
+
 ```bash
 # Clone the repository
 git clone https://github.com/getuser-shivam/NEPSE-Analysis.git
 cd NEPSE-Analysis
 
-# Install dependencies
-pip install -r requirements.txt
+# Backend setup
+cd apps/api
+npm install
+npx prisma generate
+npm run dev
 
-# Run the application
-python main.py
+# Mobile app setup (in a new terminal)
+cd apps/mobile
+flutter pub get
+flutter run
+
+# Web client setup (in a new terminal)
+cd packages/client_sdk
+dart pub get
 ```
 
 ### Dependencies
-The application requires the following Python packages:
-- pandas >= 1.5.0
-- numpy >= 1.21.0
-- matplotlib >= 3.5.0
-- yfinance >= 0.1.87
-- requests >= 2.28.0
-- beautifulsoup4 >= 4.11.0
-- plotly >= 5.11.0
-- seaborn >= 0.11.0
-- scipy >= 1.9.0
-- openpyxl >= 3.0.0
-- xlsxwriter >= 3.0.0
-- psutil >= 5.9.0
-- pytest >= 7.0.0 (for testing)
-- pytest-cov >= 4.0.0 (for coverage)
 
-## 🎯 Quick Start
+**Backend (Node.js):**
+- Express >= 4.x
+- Prisma ORM >= 6.x
+- Zod (validation)
+- Groq SDK (AI integration)
 
-### GUI Mode
-```bash
-python main.py
-```
+**Mobile (Flutter/Dart):**
+- flutter_riverpod (state management)
+- fl_chart (charting)
+- google_fonts (typography)
+- http (networking)
 
-### Command Line Options
-```bash
-# Basic usage
-python main.py
-
-# Fetch specific stock data
-python main.py --symbol NEPSE --start 2023-01-01 --end 2023-12-31
-
-# Import portfolio from CSV
-python main.py --import-portfolio portfolio.csv
-
-# Disable backup creation
-python main.py --no-backup
-
-# Enable debug logging
-python main.py --debug
-```
-
-### Command Line Help
-```bash
-python main.py --help
-```
-
-## 📊 Usage Guide
-
-### Adding Stocks to Portfolio
-1. Enter stock symbol (e.g., NEPSE, NABIL, EBL)
-2. Set date range for data fetching
-3. Click "Add to Portfolio"
-4. Enter number of shares and buy price
-5. Portfolio automatically updates with current prices
-
-### Technical Analysis
-1. Fetch stock data using symbol and date range
-2. Select indicators from Analysis Options:
-   - Moving Average
-   - RSI (Relative Strength Index)
-   - MACD (Moving Average Convergence Divergence)
-   - Bollinger Bands
-   - Stochastic Oscillator
-   - Williams %R
-3. View interactive charts with zoom and pan capabilities
-
-### Portfolio Management
-1. **View Portfolio**: See all holdings with current values and gains/losses
-2. **Portfolio Analytics**: Advanced metrics including Sharpe ratio and sector analysis
-3. **Export Data**: Save portfolio data in CSV, Excel, or JSON formats
-4. **Import Portfolio**: Load portfolio from external files
-
-### Price Alerts
-1. Right-click on any stock in portfolio
-2. Select "Set Price Alert"
-3. Configure alert conditions (price threshold)
-4. Receive notifications when alerts trigger
-
-## 🔧 Configuration
-
-### Settings Dialog
-Access settings through the GUI:
-- **Auto-save Interval**: Configure automatic data saving frequency
-- **Max Data Age**: Set data retention period
-- **Refresh Interval**: Configure auto-refresh timing
-- **Chart Style**: Choose visualization themes
-- **Backup Settings**: Manage backup preferences
-
-### Configuration File
-Settings are stored in `config.json`:
-```json
-{
-  "settings": {
-    "auto_save_interval": 300,
-    "max_data_age_days": 7,
-    "backup_enabled": true,
-    "chart_style": "seaborn-v0_8",
-    "refresh_interval": 300
-  }
-}
-```
+**Web Client (Dart):**
+- http (API communication)
 
 ## 🧪 Testing
 
-### Run All Tests
+### Run Dart Tests
 ```bash
-python run_tests.py
+cd apps/mobile
+flutter test
 ```
 
-### Run with pytest
+### Run Node.js Tests
 ```bash
-pytest
-```
-
-### Test Coverage
-```bash
-pytest --cov=main --cov-report=html
+cd apps/api
+npm test
 ```
 
 ### Test Categories
-- **Unit Tests**: Individual function and method testing
-- **Integration Tests**: Component interaction testing
-- **GUI Tests**: User interface component testing
-- **Performance Tests**: Memory and performance validation
+- **Unit Tests**: Individual function and method testing (`test/unit/`)
+- **Widget Tests**: UI component testing (`test/widget/`)
+- **Integration Tests**: Component interaction testing (`test/integration/`)
+- **E2E Tests**: End-to-end application testing (`test/e2e/`)
 
 ## 📈 Technical Indicators
 
@@ -295,131 +190,110 @@ pytest --cov=main --cov-report=html
 
 ```
 NEPSE-Analysis/
-├── tools/                  # Core Python analysis tools
-│   ├── main.py             # Desktop application entry point
-│   ├── technical_indicators.py
-│   ├── data_manager.py
-│   └── ai_analytics.py
-├── backend/                # Node.js + Prisma Express API
-├── nepse_app/              # Flutter Mobile Application
-├── dart_client/            # Dart/Web Client library & Dashboard
-├── scripts/                # Launchers and workflow scripts
-├── docs/                   # Project documentation
-├── backups/               # Automated data backups
-└── logs/                  # Application logs
+├── apps/
+│   ├── api/                    # Node.js + Prisma + Express Backend
+│   │   ├── prisma/             # Database schema & migrations (MySQL)
+│   │   ├── src/                # API routes, controllers, services
+│   │   └── package.json
+│   └── mobile/                 # Flutter Mobile Application
+│       ├── lib/                # Dart source code
+│       │   ├── main.dart       # Application entry point
+│       │   ├── models/         # Data models
+│       │   ├── providers/      # Riverpod state management
+│       │   ├── screens/        # UI screens
+│       │   ├── services/       # Business logic
+│       │   ├── theme/          # App theming
+│       │   ├── utils.dart      # Technical indicator calculations
+│       │   └── widgets/        # Reusable UI components
+│       ├── test/               # Test suite
+│       │   ├── unit/           # Unit tests
+│       │   ├── widget/         # Widget tests
+│       │   ├── integration/    # Integration tests
+│       │   └── e2e/            # End-to-end tests
+│       └── web/                # Flutter web build
+├── packages/
+│   └── client_sdk/             # Dart Web Client & Dashboard
+│       ├── lib/                # SDK source code
+│       ├── web/                # Web dashboard (deployed to GitHub Pages)
+│       │   ├── index.html      # Dashboard entry point
+│       │   ├── style.css       # Glassmorphic styles
+│       │   └── main.dart.js    # Compiled Dart application
+│       └── test/               # SDK tests
+├── .github/
+│   ├── workflows/              # CI/CD pipeline definitions
+│   └── dependabot.yml          # Automated dependency updates
+└── tools/                      # Utility scripts
 ```
 
 ### Stack Components
 
-- **Python Tools**: The core engine for technical analysis and data crunching.
-- **Backend**: Enterprise-ready API serving the mobile and web clients.
-- **NEPSE App**: Flutter-based mobile experience with real-time sync.
-- **Dart Client**: Lightweight web interface and SDK for NEPSE data.
+- **Backend (Node.js)**: Enterprise-ready API with Prisma ORM and MySQL.
+- **Mobile (Flutter/Dart)**: Cross-platform mobile app with Riverpod state management.
+- **Web Client (Dart)**: Lightweight web dashboard and SDK for NEPSE data.
+- **Database (MySQL)**: Production-grade relational database for all data persistence.
 
-### Data Persistence
-- **Automatic Saving**: Data saved every 5 minutes by default
-- **Backup System**: Automatic backups with rotation (max 10 backups)
-- **Cache Management**: Intelligent cleanup of old data
-- **Error Recovery**: Robust error handling and data validation
+## 🔧 Configuration
 
-## � Workflow Tools
+### Environment Variables
 
-The project includes automated workflow tools for continuous improvement.
-
-### Quick Start
-Double-click `START_WORKFLOWS.bat` for a simple menu to launch workflows via:
-- **Web Browser** - Browser-based interface (easiest)
-- **Desktop Panel** - Floating window interface
-- **Simple GUI** - Basic tkinter window
-- **Command Line** - For advanced users
-
-### Available Workflows
-- **review** - Code review and bug checking
-
-### Auto-Prompt System
-For continuous auto-development, use `run_auto_prompt.bat` to:
-- Open editor (Windsurf, VSCode, or Cursor)
-- Run workflows sequentially
-- Loop infinitely for non-stop enhancement
-
-## �🔍 Troubleshooting
-
-### Common Issues
-
-#### Application Won't Start
-```bash
-# Check Python version
-python --version  # Should be 3.8+
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Check for missing packages
-python -c "import tkinter; print('tkinter OK')"
+Create a `.env` file in `apps/api/`:
+```env
+DATABASE_URL="mysql://user:password@localhost:3306/nepse_analysis"
+GROQ_API_KEY="your-groq-api-key"
+POLLENS_API_KEY="your-pollens-api-key"
+PORT=3000
 ```
 
-#### Data Fetching Issues
+### Database Setup
+
 ```bash
-# Check internet connection
-ping google.com
+cd apps/api
 
-# Verify API access
-python -c "import yfinance; print('yfinance OK')"
+# Generate Prisma client
+npx prisma generate
 
-# Check logs for errors
-tail -f nepse_analysis.log
+# Push schema to MySQL
+npx prisma db push
+
+# Seed initial data
+npm run seed
+
+# Open database GUI
+npx prisma studio
 ```
-
-#### Memory Issues
-```bash
-# Clear cache manually
-python main.py --clear-cache
-
-# Check memory usage
-python -c "import psutil; print(psutil.virtual_memory())"
-```
-
-### Debug Mode
-Enable debug logging for detailed troubleshooting:
-```bash
-python main.py --debug
-```
-
-### Log Files
-Application logs are stored in `nepse_analysis.log` with levels:
-- **INFO**: Normal operation messages
-- **WARNING**: Non-critical issues
-- **ERROR**: Critical errors requiring attention
 
 ## 🤝 Contributing
 
 ### Development Setup
+
 ```bash
 # Clone repository
 git clone https://github.com/getuser-shivam/NEPSE-Analysis.git
 cd NEPSE-Analysis
 
-# Install development dependencies
-pip install -r requirements.txt
-pip install pytest pytest-cov pytest-mock
+# Install all dependencies
+cd apps/api && npm install && cd ../..
+cd apps/mobile && flutter pub get && cd ../..
+cd packages/client_sdk && dart pub get && cd ../..
 
 # Run tests
-python run_tests.py
+cd apps/mobile && flutter test
+cd apps/api && npm test
 ```
 
 ### Code Style
-- Follow PEP 8 style guidelines
-- Use type hints for function signatures
-- Add comprehensive docstrings
+- Follow Dart [Effective Dart](https://dart.dev/effective-dart) guidelines
+- Use `dart format` for consistent formatting
+- Add comprehensive documentation comments
 - Write tests for new features
-- Maintain 100% test coverage
+- Maintain test coverage
 
 ### Submitting Changes
 1. Fork the repository
 2. Create feature branch
 3. Add tests for new functionality
 4. Ensure all tests pass
-5. Submit pull request
+5. Submit pull request to `master`
 
 ## 📄 License
 
@@ -429,16 +303,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **NEPSE**: Nepal Stock Exchange for market data
 - **Yahoo Finance**: Additional data source and API
-- **matplotlib**: Chart visualization library
-- **pandas**: Data manipulation and analysis
-- **tkinter**: GUI framework
+- **Flutter**: Cross-platform UI framework
+- **Prisma**: Next-generation ORM for Node.js
+- **ApexCharts**: Interactive chart visualization
+- **Riverpod**: Reactive state management for Flutter
 
 ## 📞 Support
 
 For support, questions, or contributions:
 - **Issues**: [GitHub Issues](https://github.com/getuser-shivam/NEPSE-Analysis/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/getuser-shivam/NEPSE-Analysis/discussions)
-- **Email**: shivam@example.com
 
 ---
 
