@@ -142,7 +142,7 @@ jobs:
           verbose: true
 
       - name: Comment coverage on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         if: github.event_name == 'pull_request'
         with:
           script: |
@@ -233,7 +233,7 @@ jobs:
     
     steps:
       - name: Generate quality report
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const results = {

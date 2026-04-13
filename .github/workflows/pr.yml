@@ -79,7 +79,7 @@ jobs:
         run: dart test --reporter=compact
 
       - name: Comment test results
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         if: always()
         with:
           script: |
@@ -130,7 +130,7 @@ jobs:
         run: npx prisma validate
 
       - name: Comment results
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         if: always()
         with:
           script: |
@@ -166,7 +166,7 @@ jobs:
           du -sh . 2>/dev/null || echo "Size check skipped"
 
       - name: Post size comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             github.rest.issues.createComment({
